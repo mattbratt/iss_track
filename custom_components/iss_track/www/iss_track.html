@@ -7,25 +7,25 @@
   <link rel="preload" href="satellite.min.js" as="script">
 
   <!-- Preload libraries and images to fetch them early, improving initial render speed -->
-  <script src="/local/iss_track/satellite.min.js" defer></script>
-  <script src="/local/iss_track/astronomy.browser.js" defer></script>
-  <link rel="preload" href="/local/iss_track/images/mapday.jpg" as="image">
-  <link rel="preload" href="/local/iss_track/images/mapnight.jpg" as="image">
-  <link rel="preload" href="/local/iss_track/images/iss_tiny.png" as="image">
-  <link rel="preload" href="/local/iss_track/images/sun_128.png" as="image">
-  <link rel="preload" href="/local/iss_track/images/moon_128.png" as="image">
+  <script src="satellite.min.js" defer></script>
+  <script src="astronomy.browser.js" defer></script>
+  <link rel="preload" href="images/mapday.jpg" as="image">
+  <link rel="preload" href="images/mapnight.jpg" as="image">
+  <link rel="preload" href="images/iss_tiny.png" as="image">
+  <link rel="preload" href="images/sun_128.png" as="image">
+  <link rel="preload" href="images/moon_128.png" as="image">
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
 
   <style>
     @font-face {
       font-family: 'Roboto Condensed';
-      src: url('/local/iss_track/fonts/RobotoCondensed-Regular.ttf') format('truetype');
+      src: url('fonts/RobotoCondensed-Regular.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
     }
     @font-face {
       font-family: 'Roboto Condensed';
-      src: url('/local/iss_track/fonts/RobotoCondensed-Bold.ttf') format('truetype');
+      src: url('fonts/RobotoCondensed-Bold.ttf') format('truetype');
       font-weight: 700;
       font-style: normal;
     }
@@ -340,11 +340,11 @@
   const TLE_COOKIE_NAME = "iss_tle_cache";
   const TLE_CACHE_DURATION_MS = 2 * 3600 * 1000;
 
-  const DAYIMAGESRC = '/local/iss_track/images/mapday.jpg';
-  const NIGHTIMAGESRC = '/local/iss_track/images/mapnight.jpg';
-  const ISSIMAGESRC = '/local/iss_track/images/iss_tiny.png';
-  const SUNIMAGESRC = '/local/iss_track/images/sun_128.png';
-  const MOONIMAGESRC = '/local/iss_track/images/moon_128.png';
+  const DAYIMAGESRC = 'images/mapday.jpg';
+  const NIGHTIMAGESRC = 'images/mapnight.jpg';
+  const ISSIMAGESRC = 'images/iss_tiny.png';
+  const SUNIMAGESRC = 'images/sun_128.png';
+  const MOONIMAGESRC = 'images/moon_128.png';
 
   let lastTleUpdateTime = null;
   let issTLELine1 = '';
