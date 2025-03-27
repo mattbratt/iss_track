@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ISS Tracker</title>
+  <!-- Preload satellite.js to start fetching it early, reducing load time -->
+  <link rel="preload" href="satellite.min.js" as="script">
+
+  <!-- Preload libraries and images to fetch them early, improving initial render speed -->
+  <script src="/local/iss_track/satellite.min.js" defer></script>
+  <script src="/local/iss_track/astronomy.browser.js" defer></script>
+  <link rel="preload" href="/local/iss_track/images/mapday.jpg" as="image">
+  <link rel="preload" href="/local/iss_track/images/mapnight.jpg" as="image">
+  <link rel="preload" href="/local/iss_track/images/iss_tiny.png" as="image">
+  <link rel="preload" href="/local/iss_track/images/sun_128.png" as="image">
+  <link rel="preload" href="/local/iss_track/images/moon_128.png" as="image">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    @font-face {
+      font-family: 'Roboto Condensed';
+      src: url('/local/iss_track/fonts/RobotoCondensed-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Roboto Condensed';
+      src: url('/local/iss_track/fonts/RobotoCondensed-Bold.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+    }
+    body {
+      font-family: 'Roboto Condensed', Arial, sans-serif;
+      /* Keep your existing styles */
+      background: #444;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      position: relative;
+    }
+    #tracker-container {
+      width: 100%;
+      max-width: 1000px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    #earthCanvas {
+      border: 1px solid #666;
+      display: block;
+      width: 100%;
+      max-width: 1000px;
+      background: #222;
+      height: auto;
+      aspect-ratio: 2 / 1;
+    }
+    :fullscreen #earthCanvas {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      border: none;
+    }
+    :fullscreen #tracker-container {
+      max-width: none;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    #info-panel {
+      background-color: #00549F;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 10px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    #primary-data {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      flex-grow: 1;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .data-section {
+      margin: 0 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .data-label {
+      font-size: clamp(0.7rem, 2vw, 0.8rem);
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    .data-value {
+      font-size: clamp(0.5rem, 2.9vw, 1.1rem);
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    #units-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    #units-label {
+      margin-bottom: 4px;
+      font-size: clamp(0.7rem, 2vw, 0.9rem);
+      color: rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+      position: relative;
+    }
+    #units-toggle {
+      cursor: pointer;
+      width: 50px;
+      height: 25px;
+      border-radius: 100pt;
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    #units-toggle div {
+      height: 25px;
+      width: 25px;
+      border-radius: 100pt;
+      background-color: #fff;
+      position: absolute;
+      left: 25px;
+      transition: left 0.3s ease;
+    }
+    #units-toggle.metric div {
+      left: 0;
+    }
+    #tle-info {
+      font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+      color: rgba(255, 255, 255, 0.7);
+      margin: 0;
+      text-align: center;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-bottom: 6px;
+    }
+    #waitmsg {
+      display: none;
+      background-color: rgba(0, 0, 0, 0.75);
+      text-align: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      font-size: 1.1rem;
+      color: #fff;
+      padding-top: 50px;
+      box-sizing: border-box;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      position: relative;
+      width: 90%;
+      max-width: 600px;
+    }
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #333;
+    }
+    .close:hover {
+      color: #000;
+    }
+    .tooltip {
+      display: none;
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .tooltip-visible {
+      display: block;
+    }
+    .cursor-pointer {
+      cursor: pointer;
+    }
+    .cursor-default {
+      cursor: default;
+    }
+    iframe {
+      width: 100%;
+      height: 315px;
+      border: none;
+    }
+    #fullscreen-toggle {
+      cursor: pointer;
+      font-size: clamp(1.2rem, 4vw, 1.5rem);
+      color: #fff;
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 5;
+    }
+    @media screen and (max-width: 768px) {
+      .data-label, #units-label {
+        font-size: 0;
+        position: relative;
+        font-weight: normal;
+      }
+      .data-label::after, #units-label::after {
+        content: attr(data-abbr);
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: normal;
+        display: block;
+      }
+      #units-toggle {
+        width: 40px;
+        height: 20px;
+      }
+      #units-toggle div {
+        width: 20px;
+        height: 20px;
+        left: 20px;
+      }
+      #units-toggle.metric div {
+        left: 0;
+      }
+      #tle-info {
+        display: none;
+      }
+      #units-section {
+        display: none;
+      }
+    }
+    @media screen and (min-width: 769px) {
+      #time {
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="tracker-container">
+    <canvas id="earthCanvas"></canvas>
+    <div id="iss-tooltip" class="tooltip">Click to view live ISS feed</div>
+    <div id="info-panel">
+      <div id="primary-data">
+        <div class="data-section">
+          <div class="data-label" data-full="Latitude" data-abbr="Lat">Latitude</div>
+          <div id="lat" class="data-value">--</div>
+        </div>
+        <div class="data-section">
+          <div class="data-label" data-full="Longitude" data-abbr="Lon">Longitude</div>
+          <div id="lon" class="data-value">--</div>
+        </div>
+        <div class="data-section">
+          <div class="data-label" data-full="Altitude" data-abbr="Alt">Altitude</div>
+          <div id="alt" class="data-value">--</div>
+        </div>
+        <div class="data-section">
+          <div class="data-label" data-full="Speed" data-abbr="Spd">Speed</div>
+          <div id="speed" class="data-value">--</div>
+        </div>
+        <div class="data-section">
+          <div class="data-label" data-full="ISS Time" data-abbr="Time">ISS Time</div>
+          <div id="time" class="data-value">--</div>
+        </div>
+        <div class="data-section" id="units-section">
+          <div id="units-label" data-full="Metric/Imperial" data-abbr="M/I">Metric/Imperial</div>
+          <div id="units-toggle">
+            <div id="units-slider"></div>
+          </div>
+        </div>
+      </div>
+      <div id="fullscreen-toggle">⛶</div>
+      <div id="tle-info"></div>
+    </div>
+  </div>
+  <div id="waitmsg">Loading TLE data...</div>
+  <div id="videoModal" class="modal">
+    <div class="modal-content">
+      <span class="close">×</span>
+      <iframe 
+        src="https://www.youtube.com/embed/jKHvbJe9c_Y?si=w6Pp60_zwzah_hxf" 
+        title="YouTube video player" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+        referrerpolicy="strict-origin-when-cross-origin" 
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+
+<script>
+  const PI = Math.PI;
+  const HALF_PI = PI * 0.5;
+  const TWO_PI = PI * 2;
+
+  let currentISS = { x: 0, y: 0, size: 50, valid: false };
+
+  const TLE_URL = 'https://celestrak.com/NORAD/elements/stations.txt';
+  const DUMMY_TLE_LINE1 = "1 49044U 21066A   25056.51033439  .00026620  00000+0  48205-3 0  9999";
+  const DUMMY_TLE_LINE2 = "2 49044  51.6359 140.1589 0006082 313.5519  46.4964 15.49435478203179";
+  const TLE_COOKIE_NAME = "iss_tle_cache";
+  const TLE_CACHE_DURATION_MS = 2 * 3600 * 1000;
+
+  const DAYIMAGESRC = '/local/iss_track/images/mapday.jpg';
+  const NIGHTIMAGESRC = '/local/iss_track/images/mapnight.jpg';
+  const ISSIMAGESRC = '/local/iss_track/images/iss_tiny.png';
+  const SUNIMAGESRC = '/local/iss_track/images/sun_128.png';
+  const MOONIMAGESRC = '/local/iss_track/images/moon_128.png';
+
+  let lastTleUpdateTime = null;
+  let issTLELine1 = '';
+  let issTLELine2 = '';
+  let fallbackTleUsed = false;
+
+  const canvas = document.getElementById('earthCanvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+  const waitmsg = document.getElementById('waitmsg');
+  const unitsToggle = document.getElementById('units-toggle');
+  const fullscreenToggle = document.getElementById('fullscreen-toggle');
+  const tooltip = document.getElementById('iss-tooltip');
+  const videoModal = document.getElementById('videoModal');
+  const modalIframe = videoModal.querySelector('iframe');
+  const closeButton = document.querySelector('.close');
+  const latEl = document.getElementById('lat');
+  const lonEl = document.getElementById('lon');
+  const altEl = document.getElementById('alt');
+  const speedEl = document.getElementById('speed');
+  const timeEl = document.getElementById('time');
+  const tleInfo = document.getElementById('tle-info');
+
+  let canvasWidth, canvasHeight;
+  let useMetric = false;
+  let dayImage = null, nightImage = null, issImage = null, sunImage = null, moonImage = null;
+  let imagesLoaded = 0;
+  let orbitCache = { pastPts: [], futurePts: [], lastUpdate: 0 };
+  const ORBIT_CACHE_DURATION = 30 * 60 * 1000;
+
+  let isInitialized = false;
+
+  function drawSunIcon(sunLatDeg, sunLonDeg) {
+    if (!sunImage) {
+      console.warn("Sun image not loaded yet");
+      return;
+    }
+    const sunPosXY = latLonToXY(sunLatDeg, sunLonDeg);
+    const sunIconSize = 40;
+    ctx.save();
+    ctx.drawImage(sunImage, sunPosXY.x - sunIconSize / 2, sunPosXY.y - sunIconSize / 2, sunIconSize, sunIconSize);
+    ctx.restore();
+  }
+
+  function drawMoonIcon(moonLatDeg, moonLonDeg) {
+    if (!moonImage) {
+      console.warn("Moon image not loaded yet");
+      return;
+    }
+    const moonPosXY = latLonToXY(moonLatDeg, moonLonDeg);
+    const moonIconSize = 40;
+    ctx.save();
+    ctx.drawImage(moonImage, moonPosXY.x - moonIconSize / 2, moonPosXY.y - moonIconSize / 2, moonIconSize, moonIconSize);
+    ctx.restore();
+  }
+
+  function drawViewCircle(lat, lon, angularRadiusRad) {
+    const numPoints = 100;
+    ctx.beginPath();
+    for (let i = 0; i <= numPoints; i++) {
+      const theta = (i / numPoints) * TWO_PI;
+      const centerLatRad = lat * PI / 180;
+      const centerLonRad = lon * PI / 180;
+      const pointLat = Math.asin(
+        Math.sin(centerLatRad) * Math.cos(angularRadiusRad) +
+        Math.cos(centerLatRad) * Math.sin(angularRadiusRad) * Math.cos(theta)
+      );
+      const pointLon = centerLonRad + Math.atan2(
+        Math.sin(theta) * Math.sin(angularRadiusRad) * Math.cos(centerLatRad),
+        Math.cos(angularRadiusRad) - Math.sin(centerLatRad) * Math.sin(pointLat)
+      );
+      const pointLatDeg = pointLat * 180 / PI;
+      const pointLonDeg = pointLon * 180 / PI;
+      const { x, y } = latLonToXY(pointLatDeg, pointLonDeg);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function updateCanvasSize() {
+    canvasWidth = canvas.clientWidth;
+    canvasHeight = canvasWidth / 2;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+  }
+
+  function setCookie(name, value, days = 7) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "expires=" + date.toUTCString();
+    document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/";
+  }
+
+  function getDayOfYear(date) {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date - start + (start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000;
+    const oneDay = 1000 * 60 * 60 * 24;
+    return diff / oneDay;
+  }
+
+  function getCookie(name) {
+    const decoded = decodeURIComponent(document.cookie);
+    const parts = decoded.split(';');
+    for (let i = 0; i < parts.length; i++) {
+      let c = parts[i].trim();
+      if (c.indexOf(name + "=") === 0) {
+        return c.substring(name.length + 1, c.length);
+      }
+    }
+    return "";
+  }
+
+  function loadImages(callback) {
+    dayImage = new Image();
+    nightImage = new Image();
+    issImage = new Image();
+    sunImage = new Image();
+    moonImage = new Image();
+
+    dayImage.onload = () => {
+      imagesLoaded++;
+      console.log("Day image loaded");
+      updateCanvasSize();
+      if (!isInitialized) {
+        initialRender();
+      }
+      if (imagesLoaded === 5) {
+        console.log("All images loaded");
+        callback();
+      }
+    };
+    nightImage.onload = () => {
+      imagesLoaded++;
+      console.log("Night image loaded");
+      if (imagesLoaded === 5) callback();
+    };
+    issImage.onload = () => {
+      imagesLoaded++;
+      console.log("ISS image loaded");
+      if (imagesLoaded === 5) callback();
+      else if (!isInitialized) initialRender();
+    };
+    sunImage.onload = () => {
+      imagesLoaded++;
+      console.log("Sun image loaded");
+      if (imagesLoaded === 5) callback();
+    };
+    moonImage.onload = () => {
+      imagesLoaded++;
+      console.log("Moon image loaded");
+      if (imagesLoaded === 5) callback();
+    };
+
+    dayImage.onerror = () => console.error("Failed to load day image");
+    nightImage.onerror = () => console.error("Failed to load night image");
+    issImage.onerror = () => console.error("Failed to load ISS image");
+    sunImage.onerror = () => console.error("Failed to load sun image");
+    moonImage.onerror = () => console.error("Failed to load Moon image");
+
+    dayImage.src = DAYIMAGESRC;
+    nightImage.src = NIGHTIMAGESRC;
+    issImage.src = ISSIMAGESRC;
+    sunImage.src = SUNIMAGESRC;
+    moonImage.src = MOONIMAGESRC;
+  }
+
+  function loadTLEFromCookie() {
+    const cookieVal = getCookie(TLE_COOKIE_NAME);
+    if (!cookieVal) return null;
+    try {
+      const obj = JSON.parse(cookieVal);
+      if (!obj.timestamp || !obj.tle1 || !obj.tle2) return null;
+      const ageMs = Date.now() - obj.timestamp;
+      if (ageMs < 0 || ageMs > TLE_CACHE_DURATION_MS) return null;
+      return obj;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveTLEToCookie(tle1, tle2) {
+    const obj = { tle1, tle2, timestamp: Date.now() };
+    setCookie(TLE_COOKIE_NAME, JSON.stringify(obj), 7);
+  }
+
+  async function fetchISSTLEIfNeeded() {
+    waitmsg.style.display = 'block';
+    const cookieObj = loadTLEFromCookie();
+    if (cookieObj) {
+      issTLELine1 = cookieObj.tle1;
+      issTLELine2 = cookieObj.tle2;
+      lastTleUpdateTime = cookieObj.timestamp;
+      fallbackTleUsed = false;
+      console.log("Loaded TLE from cookie");
+      waitmsg.style.display = 'none';
+      return true;
+    }
+    try {
+      const response = await fetch(TLE_URL);
+      if (response.status === 403) {
+        console.warn("Access to TLE URL forbidden, using dummy data");
+        fallbackTleUsed = true;
+        issTLELine1 = DUMMY_TLE_LINE1;
+        issTLELine2 = DUMMY_TLE_LINE2;
+        lastTleUpdateTime = Date.now();
+        waitmsg.style.display = 'none';
+        return true;
+      }
+      if (!response.ok) throw new Error("status: " + response.status);
+      const data = await response.text();
+      const lines = data.split('\n').map(l => l.trim()).filter(l => l);
+      const idx = lines.findIndex(line => line.startsWith('ISS'));
+      if (idx === -1 || idx + 2 >= lines.length) {
+        throw new Error("ISS TLE not found");
+      }
+      issTLELine1 = lines[idx + 1];
+      issTLELine2 = lines[idx + 2];
+      fallbackTleUsed = false;
+      lastTleUpdateTime = Date.now();
+      saveTLEToCookie(issTLELine1, issTLELine2);
+      console.log("Fetched TLE data successfully");
+    } catch (err) {
+      console.error("TLE fetch error:", err);
+      fallbackTleUsed = true;
+      issTLELine1 = DUMMY_TLE_LINE1;
+      issTLELine2 = DUMMY_TLE_LINE2;
+      lastTleUpdateTime = Date.now();
+    } finally {
+      waitmsg.style.display = 'none';
+    }
+    return true;
+  }
+
+  function getCurrentISSPosition() {
+    if (!issTLELine1 || !issTLELine2) {
+      console.warn("TLE data not available, cannot compute ISS position");
+      return null;
+    }
+    const satrec = satellite.twoline2satrec(issTLELine1, issTLELine2);
+    const now = new Date();
+    const pv = satellite.propagate(satrec, now);
+    if (!pv.position || !pv.velocity) {
+      console.warn("Failed to propagate ISS position");
+      return null;
+    }
+    const gmst = satellite.gstime(now);
+    const gd = satellite.eciToGeodetic(pv.position, gmst);
+    const lat = satellite.degreesLat(gd.latitude);
+    const lon = satellite.degreesLong(gd.longitude);
+    const altKm = gd.height;
+    const vx = pv.velocity.x, vy = pv.velocity.y, vz = pv.velocity.z;
+    const speedKps = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    return { lat, lon, altKm, speedKps, satrec };
+  }
+
+  function getApproxSunPosition(date = new Date()) {
+    const timeUTC = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    let sunLonDeg = (timeUTC - 12) * -15;
+    while (sunLonDeg > 180) sunLonDeg -= 360;
+    while (sunLonDeg < -180) sunLonDeg += 360;
+    const dayOfYear = getDayOfYear(date);
+    const axialTilt = 23.44;
+    const sunLatDeg = -axialTilt * Math.cos((2 * Math.PI / 365) * (dayOfYear + 10));
+    return { lat: sunLatDeg, lon: sunLonDeg };
+  }
+
+  function getMoonPosition(date = new Date()) {
+    if (typeof Astronomy === 'undefined') {
+      console.error('Astronomy library not loaded');
+      return { lat: 0, lon: 0 };
+    }
+    const dummyObserver = new Astronomy.Observer(0, 0, 0);
+    const equ = Astronomy.Equator('Moon', date, dummyObserver, true, true);
+    const ra = equ.ra;
+    const dec = equ.dec;
+    const gmst = Astronomy.SiderealTime(date);
+    let moonLonDeg = (ra - gmst) * 15;
+    while (moonLonDeg > 180) moonLonDeg -= 360;
+    while (moonLonDeg < -180) moonLonDeg += 360;
+    const moonLatDeg = dec;
+    return { lat: moonLatDeg, lon: moonLonDeg };
+  }
+
+  function drawDayNight() {
+    if (!dayImage || !nightImage) {
+      console.warn("Day or night image not loaded, cannot draw terminator");
+      if (dayImage) ctx.drawImage(dayImage, 0, 0, canvasWidth, canvasHeight);
+      return;
+    }
+    ctx.drawImage(dayImage, 0, 0, canvasWidth, canvasHeight);
+    const sunPos = getApproxSunPosition();
+    const sunLonDeg = sunPos.lon;
+    const sunLatDeg = sunPos.lat;
+    const sunLonRad = sunLonDeg * PI / 180;
+    const sunLatRad = sunLatDeg * PI / 180;
+    const cosSunLatRad = Math.cos(Math.abs(sunLatRad));
+    const sinSunLatRad = Math.sin(Math.abs(sunLatRad));
+    const terminatorPoints = [];
+    const NUM_SEGS = 90;
+    const step = canvasWidth / NUM_SEGS;
+    for (let x = -step; x <= canvasWidth + step; x += step) {
+      let lonRad = XToLonRad(x);
+      while (lonRad > PI) lonRad -= TWO_PI;
+      while (lonRad < -PI) lonRad += TWO_PI;
+      let latRad;
+      if (Math.abs(lonRad - sunLonRad) === HALF_PI) {
+        latRad = sunLatRad;
+      } else {
+        latRad = -Math.atan2(cosSunLatRad * Math.cos(lonRad - sunLonRad), sinSunLatRad);
+        latRad = sunLatRad < 0 ? -latRad : latRad;
+      }
+      terminatorPoints.push({ x, y: LatRadToY(latRad) });
+    }
+    ctx.save();
+    ctx.beginPath();
+    if (terminatorPoints.length) {
+      ctx.moveTo(terminatorPoints[0].x, terminatorPoints[0].y);
+      for (let i = 1; i < terminatorPoints.length; i++) {
+        ctx.lineTo(terminatorPoints[i].x, terminatorPoints[i].y);
+      }
+      const bottomY = sunLatDeg < 0 ? 0 : canvasHeight;
+      ctx.lineTo(canvasWidth + step, bottomY);
+      ctx.lineTo(-step, bottomY);
+      ctx.closePath();
+      ctx.clip();
+    }
+    ctx.drawImage(nightImage, 0, 0, canvasWidth, canvasHeight);
+    ctx.restore();
+    ctx.beginPath();
+    ctx.rect(0, 0, canvasWidth, canvasHeight);
+    ctx.clip();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (terminatorPoints.length) {
+      let started = false;
+      for (let i = 0; i < terminatorPoints.length; i++) {
+        const { x, y } = terminatorPoints[i];
+        if (x >= 0 && x <= canvasWidth) {
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    const gradientWidth = 30;
+    for (let i = 0; i < terminatorPoints.length - 1; i += 2) {
+      const p1 = terminatorPoints[i];
+      const p2 = terminatorPoints[i + 1];
+      if (p1.x < 0 || p1.x > canvasWidth || p2.x < 0 || p2.x > canvasWidth) continue;
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
+      for (let j = 0; j < steps; j++) {
+        const t = j / steps;
+        const x = p1.x + dx * t;
+        const y = p1.y + dy * t;
+        const gradient = ctx.createLinearGradient(x - gradientWidth / 2, y, x + gradientWidth / 2, y);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - gradientWidth / 2, y - 2, gradientWidth, 4);
+      }
+    }
+    ctx.restore();
+    drawSunIcon(sunLatDeg, sunLonDeg);
+    const moonPos = getMoonPosition();
+    drawMoonIcon(moonPos.lat, moonPos.lon);
+  }
+
+  function XToLonRad(x) {
+    return ((x - canvasWidth / 2) * TWO_PI / canvasWidth);
+  }
+
+  function LatRadToY(latRad) {
+    return (canvasHeight * (0.5 - latRad / PI));
+  }
+
+  function latLonToXY(lat, lon) {
+    const x = (lon + 180) * (canvasWidth / 360);
+    const y = (90 - lat) * (canvasHeight / 180);
+    return { x, y };
+  }
+
+  function computeOrbitPoints(satrec, startTime, endTime, stepMin) {
+    const now = Date.now();
+    if (orbitCache.lastUpdate && now - orbitCache.lastUpdate < ORBIT_CACHE_DURATION) {
+      return { pastPts: orbitCache.pastPts, futurePts: orbitCache.futurePts };
+    }
+    const ptsPast = [];
+    const ptsFuture = [];
+    let cur = new Date(startTime);
+    while (cur <= endTime) {
+      const pv = satellite.propagate(satrec, cur);
+      if (pv.position) {
+        const gmst = satellite.gstime(cur);
+        const gd = satellite.eciToGeodetic(pv.position, gmst);
+        const point = {
+          lat: satellite.degreesLat(gd.latitude),
+          lon: satellite.degreesLong(gd.longitude)
+        };
+        if (cur <= now) ptsPast.push(point);
+        else ptsFuture.push(point);
+      }
+      cur = new Date(cur.getTime() + stepMin * 60 * 1000);
+    }
+    orbitCache = { pastPts: ptsPast, futurePts: ptsFuture, lastUpdate: now };
+    return { pastPts: ptsPast, futurePts: ptsFuture };
+  }
+
+  function splitDateLine(points) {
+    if (!points.length) return [];
+    const segs = [];
+    let seg = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1], cur = points[i];
+      if (Math.abs(cur.lon - prev.lon) > 180) {
+        segs.push(seg);
+        seg = [cur];
+      } else {
+        if (prev.lon > 150 && cur.lon < -150) {
+          const t = (180 - prev.lon) / (prev.lon - (cur.lon + 360));
+          const lat = prev.lat + t * (cur.lat - prev.lat);
+          seg.push({ lat: lat, lon: 180 });
+          segs.push(seg);
+          seg = [{ lat: lat, lon: -180 }, cur];
+        } else if (prev.lon < -150 && cur.lon > 150) {
+          const t = (-180 - prev.lon) / (prev.lon - (cur.lon - 360));
+          const lat = prev.lat + t * (cur.lat - prev.lat);
+          seg.push({ lat: lat, lon: -180 });
+          segs.push(seg);
+          seg = [{ lat: lat, lon: 180 }, cur];
+        } else {
+          seg.push(cur);
+        }
+      }
+    }
+    if (seg.length) segs.push(seg);
+    return segs;
+  }
+
+  function drawOrbitSegments(segments, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    segments.forEach(sg => {
+      if (sg.length) {
+        ctx.beginPath();
+        let { x, y } = latLonToXY(sg[0].lat, sg[0].lon);
+        ctx.moveTo(x, y);
+        for (let i = 1; i < sg.length; i++) {
+          ({ x, y } = latLonToXY(sg[i].lat, sg[i].lon));
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+
+  function drawISS(lat, lon) {
+    if (isNaN(lat) || isNaN(lon)) {
+      console.warn("Invalid lat/lon for ISS:", lat, lon);
+      return;
+    }
+    const { x, y } = latLonToXY(lat, lon);
+    const issSize = 50;
+    ctx.save();
+    if (issImage) {
+      currentISS = { x: x, y: y, size: issSize, valid: true };
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.drawImage(issImage, x - issSize / 2, y - issSize / 2, issSize, issSize);
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    } else {
+      console.warn("ISS image not loaded, using fallback");
+      currentISS = { x: x, y: y, size: 7, valid: false };
+      ctx.fillStyle = 'red';
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, TWO_PI);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawLatLonGrid() {
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+
+    for (let lat = -90; lat <= 90; lat += 30) {
+      if (lat === 0) {
+        ctx.strokeStyle = 'red';
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      }
+      const { x: x1, y } = latLonToXY(lat, -180);
+      const { x: x2 } = latLonToXY(lat, 180);
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+    }
+
+    for (let lon = -180; lon <= 180; lon += 30) {
+      if (lon === 0) {
+        ctx.strokeStyle = 'blue';
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      }
+      const { x, y: y1 } = latLonToXY(90, lon);
+      const { y: y2 } = latLonToXY(-90, lon);
+      ctx.beginPath();
+      ctx.moveTo(x, y1);
+      ctx.lineTo(x, y2);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawInitialMap() {
+    if (!dayImage) {
+      console.warn("Day image not loaded, using fallback background");
+      ctx.fillStyle = '#222';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    } else {
+      ctx.drawImage(dayImage, 0, 0, canvasWidth, canvasHeight);
+    }
+    drawLatLonGrid();
+    waitmsg.style.display = 'none';
+  }
+
+  function drawInitialISS(lat, lon) {
+    if (isNaN(lat) || isNaN(lon)) {
+      console.warn("Invalid lat/lon for initial ISS:", lat, lon);
+      return;
+    }
+    drawISS(lat, lon);
+  }
+
+  function openModal() {
+    videoModal.style.display = 'flex';
+    const src = modalIframe.src;
+    modalIframe.src = '';
+    modalIframe.src = src + '&autoplay=1';
+  }
+
+  function closeModal() {
+    videoModal.style.display = 'none';
+    modalIframe.src = modalIframe.src.replace('&autoplay=1', '');
+  }
+
+  window.onclick = function(event) {
+    if (event.target === videoModal) {
+      closeModal();
+    }
+  };
+
+  function setupCanvasEvents() {
+    canvas.addEventListener('mousemove', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      if (currentISS.valid &&
+          mouseX >= currentISS.x - currentISS.size / 2 &&
+          mouseX <= currentISS.x + currentISS.size / 2 &&
+          mouseY >= currentISS.y - currentISS.size / 2 &&
+          mouseY <= currentISS.y + currentISS.size / 2) {
+        tooltip.classList.add('tooltip-visible');
+        canvas.classList.add('cursor-pointer');
+        canvas.classList.remove('cursor-default');
+        const tooltipWidth = 150;
+        const centerX = rect.left + canvasWidth / 2;
+        const centerY = rect.top + canvasHeight / 2;
+        tooltip.style.left = `${centerX - 75}px`;
+        tooltip.style.top = `${centerY - 10}px`;
+      } else {
+        tooltip.classList.remove('tooltip-visible');
+        canvas.classList.remove('cursor-pointer');
+        canvas.classList.add('cursor-default');
+      }
+    });
+
+    canvas.addEventListener('click', function(event) {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const clickY = event.clientY - rect.top;
+      if (currentISS.valid &&
+          clickX >= currentISS.x - currentISS.size / 2 &&
+          clickX <= currentISS.x + currentISS.size / 2 &&
+          clickY >= currentISS.y - currentISS.size / 2 &&
+          clickY <= currentISS.y + currentISS.size / 2) {
+        openModal();
+      }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+      tooltip.classList.remove('tooltip-visible');
+      canvas.classList.remove('cursor-pointer');
+      canvas.classList.add('cursor-default');
+    });
+  }
+
+  function setupOtherEvents() {
+    unitsToggle.addEventListener('click', toggleUnits);
+    fullscreenToggle.addEventListener('click', toggleFullScreen);
+    closeButton.addEventListener('click', closeModal);
+  }
+
+  function initialRender() {
+    console.log("Starting initial render");
+    drawInitialMap();
+    const data = getCurrentISSPosition();
+    if (data) {
+      drawInitialISS(data.lat, data.lon);
+      updateInfoPanel(data.lat, data.lon, data.altKm, data.speedKps);
+      updateTLEInfo();
+    } else {
+      console.warn("No ISS position data available for initial render");
+    }
+  }
+
+  function drawEverything() {
+    console.log("Starting full render");
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    drawDayNight();
+    drawLatLonGrid();
+
+    const data = getCurrentISSPosition();
+    if (!data) {
+      console.error("No ISS position data available for full render");
+      return;
+    }
+    const { lat, lon, altKm, speedKps, satrec } = data;
+
+    const periodMin = (2 * PI) / satrec.no;
+    const now = new Date();
+    const pastStart = new Date(now - periodMin * 60 * 1000);
+    const futureEnd = new Date(now.getTime() + periodMin * 60 * 1000);
+    const { pastPts, futurePts } = computeOrbitPoints(satrec, pastStart, futureEnd, 1);
+
+    drawOrbitSegments(splitDateLine(pastPts), 'white');
+    drawOrbitSegments(splitDateLine(futurePts), 'yellow');
+    drawISS(lat, lon);
+
+    const viewRadiusKm = 2000;
+    const earthRadiusKm = 6371;
+    const angularRadiusRad = Math.asin(viewRadiusKm / (earthRadiusKm + altKm));
+    drawViewCircle(lat, lon, angularRadiusRad);
+
+    const oneAndHalfHoursMs = 1.5 * 60 * 60 * 1000;
+    const futureTime = new Date(now.getTime() + oneAndHalfHoursMs);
+    const pastTime = new Date(now.getTime() - oneAndHalfHoursMs);
+    const futurePos = satellite.propagate(satrec, futureTime);
+    const pastPos = satellite.propagate(satrec, pastTime);
+    if (!futurePos.position || !pastPos.position) {
+      console.error("Failed to propagate ISS position for +1.5h or -1.5h.");
+      return;
+    }
+    const futureGmst = satellite.gstime(futureTime);
+    const pastGmst = satellite.gstime(pastTime);
+    const futureGd = satellite.eciToGeodetic(futurePos.position, futureGmst);
+    const pastGd = satellite.eciToGeodetic(pastPos.position, pastGmst);
+    const futureLat = satellite.degreesLat(futureGd.latitude);
+    const futureLon = satellite.degreesLong(futureGd.longitude);
+    const pastLat = satellite.degreesLat(pastGd.latitude);
+    const pastLon = satellite.degreesLong(pastGd.longitude);
+    const futureXY = latLonToXY(futureLat, futureLon);
+    const pastXY = latLonToXY(pastLat, pastLon);
+    const pastSegments = splitDateLine(pastPts);
+    const futureSegments = splitDateLine(futurePts);
+    let pastStartXY = pastXY, futureEndXY = futureXY;
+    if (pastSegments.length > 0 && pastSegments[0].length > 0) {
+      const firstPastPoint = pastSegments[0][0];
+      pastStartXY = latLonToXY(firstPastPoint.lat, firstPastPoint.lon);
+    }
+    if (futureSegments.length > 0 && futureSegments[futureSegments.length - 1].length > 0) {
+      const lastFuturePoint = futureSegments[futureSegments.length - 1][futureSegments[futureSegments.length - 1].length - 1];
+      futureEndXY = latLonToXY(lastFuturePoint.lat, lastFuturePoint.lon);
+    }
+    let pastDirection = 0, futureDirection = 0;
+    if (pastSegments.length > 0 && pastSegments[0].length > 1) {
+      pastDirection = getOrbitDirection(pastSegments[0], 0);
+    } else {
+      pastDirection = Math.atan2(futureXY.y - pastXY.y, futureXY.x - pastXY.x) || 0;
+    }
+    if (futureSegments.length > 0) {
+      const lastFutureSegment = futureSegments[futureSegments.length - 1];
+      if (lastFutureSegment.length > 1) {
+        futureDirection = getOrbitDirection(lastFutureSegment, lastFutureSegment.length - 1);
+      }
+    }
+
+    function getOrbitDirection(segment, index) {
+      if (!segment || segment.length < 2) return 0;
+      if (index >= segment.length || index < 0) return 0;
+      const prevIndex = Math.max(0, index - 1);
+      const nextIndex = Math.min(segment.length - 1, index + 1);
+      const prevPoint = latLonToXY(segment[prevIndex].lat, segment[prevIndex].lon);
+      const nextPoint = latLonToXY(segment[nextIndex].lat, segment[nextIndex].lon);
+      const dx = nextPoint.x - prevPoint.x;
+      const dy = nextPoint.y - prevPoint.y;
+      return dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx);
+    }
+
+    function drawArrow(x, y, label, color, isOutward) {
+      if (isNaN(x) || isNaN(y)) return;
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.font = '12px Arial';
+      const arrowLength = 20;
+      const arrowHeadLength = 10;
+      const arrowHeadWidth = 8;
+      let baseAngle = isOutward ? futureDirection : pastDirection;
+      const shaftEndX = x + Math.cos(baseAngle) * arrowLength;
+      const shaftEndY = y + Math.sin(baseAngle) * arrowLength;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(shaftEndX, shaftEndY);
+      ctx.stroke();
+      const headX1 = shaftEndX - Math.cos(baseAngle) * arrowHeadLength;
+      const headY1 = shaftEndY - Math.sin(baseAngle) * arrowHeadLength;
+      const headX2 = headX1 + Math.sin(baseAngle) * arrowHeadWidth;
+      const headY2 = headY1 - Math.cos(baseAngle) * arrowHeadWidth;
+      const headX3 = headX1 - Math.sin(baseAngle) * arrowHeadWidth;
+      const headY3 = headY1 + Math.cos(baseAngle) * arrowHeadWidth;
+      ctx.beginPath();
+      ctx.moveTo(shaftEndX, shaftEndY);
+      ctx.lineTo(headX2, headY2);
+      ctx.lineTo(headX3, headY3);
+      ctx.closePath();
+      ctx.fill();
+      const labelOffset = 15;
+      const verticalOffset = 5;
+      if (isOutward) {
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, shaftEndX - labelOffset, shaftEndY - verticalOffset);
+      } else {
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, shaftEndX + labelOffset, shaftEndY + verticalOffset);
+      }
+      ctx.restore();
+    }
+
+    if (!isNaN(pastStartXY.x) && !isNaN(pastStartXY.y)) {
+      drawArrow(pastStartXY.x, pastStartXY.y, '-1.5h', 'white', false);
+    }
+    if (!isNaN(futureEndXY.x) && !isNaN(futureEndXY.y)) {
+      drawArrow(futureEndXY.x, futureEndXY.y, '+1.5h', 'yellow', true);
+    }
+
+    if (fallbackTleUsed) {
+      ctx.save();
+      ctx.translate(canvasWidth / 2, canvasHeight / 2);
+      ctx.rotate(-PI / 4);
+      ctx.font = '60px Arial';
+      ctx.fillStyle = 'rgba(255,0,0,0.3)';
+      ctx.textAlign = 'center';
+      ctx.fillText('STALE TLE DATA', 0, 0);
+      ctx.restore();
+    }
+
+    updateInfoPanel(lat, lon, altKm, speedKps);
+    updateTLEInfo();
+  }
+
+  function updateInfoPanel(lat, lon, altKm, speedKps) {
+    if (isNaN(lat) || isNaN(lon) || isNaN(altKm) || isNaN(speedKps)) {
+      console.warn("Invalid data for info panel:", { lat, lon, altKm, speedKps });
+      return;
+    }
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lonDir = lon >= 0 ? 'E' : 'W';
+    const latAbs = Math.abs(lat).toFixed(1);
+    const lonAbs = Math.abs(lon).toFixed(1);
+    const speedKmh = speedKps * 3600;
+    const alt = useMetric ? `${altKm.toFixed(0)} km` : `${(altKm * 0.621371).toFixed(0)} mi`;
+    const speed = useMetric ? `${speedKmh.toFixed(0)} km/h` : `${(speedKmh * 0.621371).toFixed(0)} mph`;
+
+    const now = new Date();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[now.getUTCMonth()];
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    const hours = String(now.getUTCHours()).padStart(2, '0');
+    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+    const timeText = window.innerWidth <= 768
+      ? `${hours}:${minutes}:${seconds} GMT`
+      : `${month} ${day}, ${hours}:${minutes}:${seconds} GMT`;
+
+    latEl.textContent = `${latAbs}° ${latDir}`;
+    lonEl.textContent = `${lonAbs}° ${lonDir}`;
+    altEl.textContent = alt;
+    speedEl.textContent = speed;
+    timeEl.textContent = timeText;
+  }
+
+  function updateTLEInfo() {
+    if (!lastTleUpdateTime) {
+      tleInfo.textContent = "";
+      return;
+    }
+    const lastUpdate = new Date(lastTleUpdateTime).toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const nextUpdateTime = new Date(lastTleUpdateTime + TLE_CACHE_DURATION_MS);
+    const nextUpdate = nextUpdateTime.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    tleInfo.textContent = `TLE updated ${lastUpdate} - Next update: ${nextUpdate} (times local)`;
+  }
+
+  let lastFrameTime = 0;
+  const FRAME_INTERVAL = 5000;
+
+  function startLoop() {
+    function renderLoop(currentTime) {
+      if (currentTime - lastFrameTime >= FRAME_INTERVAL) {
+        drawEverything();
+        lastFrameTime = currentTime;
+      }
+      requestAnimationFrame(renderLoop);
+    }
+    requestAnimationFrame(renderLoop);
+  }
+
+  function toggleUnits() {
+    useMetric = !useMetric;
+    unitsToggle.classList.toggle('metric');
+    drawEverything();
+  }
+
+  function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+      if (canvas.requestFullscreen) canvas.requestFullscreen();
+      else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+      else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+  }
+
+  async function init() {
+    try {
+      updateCanvasSize();
+      setupCanvasEvents();
+      setupOtherEvents();
+      waitmsg.style.display = 'block';
+      await new Promise(res => loadImages(res));
+      const tleLoaded = await fetchISSTLEIfNeeded();
+      if (tleLoaded) {
+        initialRender();
+        isInitialized = true;
+        setTimeout(() => {
+          drawEverything();
+          startLoop();
+        }, 100);
+      } else {
+        console.error("Failed to load TLE data, cannot proceed with rendering");
+      }
+    } catch (err) {
+      console.error("Init error:", err);
+    }
+  }
+
+  window.addEventListener('load', init);
+
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      updateCanvasSize();
+      drawEverything();
+    }, 100);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "domain": "iss_track",
+  "name": "ISS Track",
+  "version": "1.0.0",
+  "documentation": "https://github.com/mattbratt/iss_track/blob/main/README.md",
+  "issue_tracker": "https://github.com/mattbratt/iss_track/issues",
+  "dependencies": [],
+  "codeowners": ["@mattbratt"],
+  "requirements": [],
+  "iot_class": "cloud_polling"
+}
