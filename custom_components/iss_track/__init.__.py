@@ -15,7 +15,7 @@ async def async_setup(hass, config):
 
     # Define the dashboard configuration
     dashboard_config = {
-        "title": "ISS Track",
+        "title": "ISS_Track",
         "views": [
             {
                 "theme": "ios-dark-mode-blue-red",
@@ -37,7 +37,7 @@ async def async_setup(hass, config):
     }
 
     # Check if the "ISS Track" dashboard already exists
-    dashboard_id = "ISS Track"
+    dashboard_id = "ISS_Track"
     lovelace_config_path = hass.config.path(f"lovelace/{dashboard_id}.yaml")
 
     try:
@@ -50,7 +50,7 @@ async def async_setup(hass, config):
     else:
         # If the dashboard exists, append the ISS Track view if it doesn't already exist
         existing_views = existing_config.get("views", [])
-        if not any(view.get("title") == "ISS Track" for view in existing_views):
+        if not any(view.get("title") == "ISS_Track" for view in existing_views):
             existing_views.append(dashboard_config["views"][0])
             existing_config["views"] = existing_views
 
