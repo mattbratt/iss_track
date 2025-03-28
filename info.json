@@ -1,6 +1,0 @@
-{
-    "name": "iss_track",
-    "domains": ["ISS Track"],
-    "homeassistant": "2025.2.0",  # Minimum Home Assistant version (adjust as needed)
-    "render_readme": true
-}
