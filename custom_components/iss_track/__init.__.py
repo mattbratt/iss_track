@@ -9,7 +9,19 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "iss_track"
 
 async def async_setup(hass, config):
-    """Set up the ISS Track component."""
+    """Set up the ISS Track component via YAML (if applicable)."""
+    # If the integration is set up via YAML, we can trigger the config flow manually.
+    # However, since we're using config_flow, this is mostly a placeholder.
+    if not hass.config_entries.async_entries(DOMAIN):
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": "import"}
+            )
+        )
+    return True
+
+async def async_setup_entry(hass, entry):
+    """Set up ISS Track from a config entry."""
     # Register static paths for the frontend assets
     try:
         static_path = os.path.join(os.path.dirname(__file__), "www")
