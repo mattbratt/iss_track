@@ -5,10 +5,12 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.lovelace import dashboard
 
 _LOGGER = logging.getLogger(__name__)
+_LOGGER.debug("P1")
 
 DOMAIN = "iss_track"
 
 async def async_setup(hass, config):
+    _LOGGER.debug("P2")
     """Set up the ISS Track component via YAML (if applicable)."""
     # If the integration is set up via YAML, we can trigger the config flow manually.
     # However, since we're using config_flow, this is mostly a placeholder.
@@ -19,6 +21,8 @@ async def async_setup(hass, config):
             )
         )
     return True
+
+_LOGGER.debug("P3")
 
 async def async_setup_entry(hass, entry):
     """Set up ISS Track from a config entry."""
@@ -35,7 +39,8 @@ async def async_setup_entry(hass, entry):
     except Exception as e:
         _LOGGER.error(f"Failed to register static path for ISS Track: {str(e)}")
         return False
-
+    
+    _LOGGER.debug("P4")
     # Define the dashboard configuration
     dashboard_config = {
         "title": "ISS Track",
@@ -59,6 +64,8 @@ async def async_setup_entry(hass, entry):
         ],
     }
 
+
+    _LOGGER.debug("P5")
     # Check and update the dashboard
     dashboard_id = "iss-track"
     lovelace_config_path = hass.config.path(f"lovelace/{dashboard_id}.yaml")
