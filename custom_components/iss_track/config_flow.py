@@ -2,6 +2,7 @@
 from homeassistant import config_entries
 import voluptuous as vol
 import os
+import yaml
 
 class ISSTrackConfigFlow(config_entries.ConfigFlow, domain="iss_track"):
     """Handle a config flow for ISS Tracker."""
@@ -30,8 +31,11 @@ class ISSTrackConfigFlow(config_entries.ConfigFlow, domain="iss_track"):
                 }]
             }]
         }
-        # Store dashboard config
+        # Store dashboard config asynchronously
         dashboard_path = os.path.join(self.hass.config.path(), "custom_components/iss_track/dashboard.yaml")
-        with open(dashboard_path, "w") as f:
-            import yaml
-            yaml.dump(dashboard_config, f)
+        await self.hass.async_add_executor_job(self._write_dashboard_file, dashboard_path, dashboard_config)
+
+    def _write_dashboard_file(self, path, config):
+        """Write the dashboard config to file in a separate thread."""
+        with open(path, "w") as f:
+            yaml.dump(config, f)
