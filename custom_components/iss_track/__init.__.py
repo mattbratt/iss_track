@@ -4,6 +4,11 @@ from homeassistant.core import HomeAssistant
 
 DOMAIN = "iss_track"
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the ISS Tracker integration from YAML (optional)."""
+    # This is optional since you're using config flow, but included for completeness
+    return True
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up ISS Tracker from a config entry."""
     hass.data.setdefault(DOMAIN, {})
