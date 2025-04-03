@@ -7,6 +7,6 @@
   "dependencies": [],
   "codeowners": ["@mattbratt"],
   "requirements": [],
-  "iot_class": "cloud_polling",
+  "iot_class": "local_polling",
   "config_flow": true
 }
