@@ -31,7 +31,7 @@ class ISSTrackConfigFlow(config_entries.ConfigFlow, domain="iss_track"):
                 }]
             }]
         }
-        # Store dashboard config asynchronously
+        # Store dashboard config asynchronously using an executor
         dashboard_path = os.path.join(self.hass.config.path(), "custom_components/iss_track/dashboard.yaml")
         await self.hass.async_add_executor_job(self._write_dashboard_file, dashboard_path, dashboard_config)
 
