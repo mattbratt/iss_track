@@ -1,3 +1,6 @@
 {
-    "name": "ISS Track"
+  "name": "ISS Tracker",
+  "render_readme": true,
+  "domains": ["iss_track"],
+  "country": "US"
 }
