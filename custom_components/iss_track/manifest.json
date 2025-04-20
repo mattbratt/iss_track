@@ -1,12 +1,11 @@
 {
-  "domain": "iss_track",
+  "domain": "iss_tracker",
   "name": "ISS Tracker",
   "version": "1.0.0",
-  "documentation": "https://github.com/mattbratt/iss_track",
-  "issue_tracker": "https://github.com/mattbratt/iss_track/issues",
-  "dependencies": [],
-  "codeowners": ["@mattbratt"],
+  "documentation": "https://github.com/YOUR_USERNAME/iss_tracker",
+  "codeowners": ["@YOUR_USERNAME"],
   "requirements": [],
-  "iot_class": "local_polling",
-  "config_flow": true
+  "config_flow": false,
+  "dependencies": [],
+  "iot_class": "local_push"
 }
