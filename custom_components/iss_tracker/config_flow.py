@@ -26,7 +26,7 @@ class ISSTrackConfigFlow(config_entries.ConfigFlow, domain="iss_track"):
                 "title": "ISS Tracker",
                 "cards": [{
                     "type": "iframe",
-                    "url": "/local/iss_track/iss_track.html",
+                    "url": "/local/iss_track/my_iss.html",  
                     "aspect_ratio": "50%"
                 }]
             }]
