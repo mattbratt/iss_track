@@ -3,7 +3,7 @@
   "name": "ISS Tracker",
   "version": "1.0.0",
   "documentation": "https://github.com/YOUR_USERNAME/iss_tracker",
-  "codeowners": ["@YOUR_USERNAME"],
+  "codeowners": ["@mattbratt"],
   "requirements": [],
   "config_flow": false,
   "dependencies": [],
