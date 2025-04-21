@@ -2,7 +2,7 @@
   "domain": "iss_track",
   "name": "ISS Tracker",
   "version": "1.0.0",
-  "documentation": "https://github.com/YOUR_USERNAME/iss_tracker",
+  "documentation": "https://github.com/mattbratt/iss_track",
   "codeowners": ["@mattbratt"],
   "requirements": [],
   "config_flow": false,
