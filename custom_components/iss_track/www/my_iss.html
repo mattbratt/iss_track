@@ -334,9 +334,10 @@
 
   let currentISS = { x: 0, y: 0, size: 50, valid: false };
 
-  const TLE_URL = 'https://celestrak.com/NORAD/elements/stations.txt';
-  const DUMMY_TLE_LINE1 = "1 49044U 21066A   25056.51033439  .00026620  00000+0  48205-3 0  9999";
-  const DUMMY_TLE_LINE2 = "2 49044  51.6359 140.1589 0006082 313.5519  46.4964 15.49435478203179";
+  <!-- const TLE_URL = 'https://celestrak.com/NORAD/elements/stations.txt'; -->
+  const TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=2le';  
+  const DUMMY_TLE_LINE1 = "1 49044U 21066A   26156.77317084  .00009220  00000+0  17151-3 0  9993";
+  const DUMMY_TLE_LINE2 = "2 49044  51.6332 356.5983 0007059 137.5864 222.5671 15.49621928569920";
   const TLE_COOKIE_NAME = "iss_tle_cache";
   const TLE_CACHE_DURATION_MS = 2 * 3600 * 1000;
 
