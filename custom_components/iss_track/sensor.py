@@ -30,7 +30,7 @@ class ISSTrackSensor(SensorEntity):
     async def async_update(self):
         """Fetch new state data for the sensor."""
         # Fetch TLE data (simplified, matching your HTML logic)
-        TLE_URL = "https://celestrak.com/NORAD/elements/stations.txt"
+        TLE_URL = "http://celestrak.com/NORAD/elements/stations.txt"
         try:
             response = await self._hass.async_add_executor_job(requests.get, TLE_URL)
             if response.status_code == 200:
