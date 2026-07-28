@@ -1,6 +1,5 @@
 {
-  "name": "ISS Tracker",
+  "name": "ISS Track",
   "render_readme": true,
-  "domains": ["iss_track"],
-  "country": "US"
+  "homeassistant": "2024.7.0"
 }
