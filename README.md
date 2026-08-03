@@ -2,6 +2,9 @@
 
 A Home Assistant integration to track the International Space Station (ISS) in real time. Inspired by the European Space Agency's [ESA ISS Tracker](https://isstracker.spaceflight.esa.int/). The map styling is the only element carried over from the ESA solution; the implementation here is entirely different, with the following features (* = differs from the ESA implementation):
 
+<img width="1000" height="573" alt="image" src="https://github.com/user-attachments/assets/f7c90b72-0945-48d1-91d4-f0ad0052eda1" />
+
+
 ## Features
 - Displays the current position of the ISS on a world map with day/night shading and orbit paths (1.5 hours ahead and behind).
 - Shows live data including latitude, longitude, altitude, speed, and ISS time.
