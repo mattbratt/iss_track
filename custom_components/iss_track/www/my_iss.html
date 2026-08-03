@@ -58,7 +58,7 @@
       height: auto;
       aspect-ratio: 2 / 1;
     }
-    #tracker-container:fullscreen {
+    :fullscreen #tracker-container {
       max-width: none;
       width: 100%;
       height: 100%;
@@ -67,7 +67,7 @@
       justify-content: center;
       background: #000;
     }
-    #tracker-container:fullscreen #earthCanvas {
+    :fullscreen #earthCanvas {
       margin: 0;
       width: 100%;
       height: auto;
@@ -205,7 +205,7 @@
     }
     .tooltip {
       display: none;
-      position: absolute;
+      position: fixed;
       background-color: rgba(0, 0, 0, 0.8);
       color: #fff;
       padding: 5px 10px;
@@ -352,7 +352,6 @@
   let issTLELine2 = '';
   let fallbackTleUsed = false;
 
-  const trackerContainer = document.getElementById('tracker-container');
   const canvas = document.getElementById('earthCanvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: false });
   const waitmsg = document.getElementById('waitmsg');
@@ -936,10 +935,15 @@
         tooltip.classList.add('tooltip-visible');
         canvas.classList.add('cursor-pointer');
         canvas.classList.remove('cursor-default');
-        const centerX = rect.left + canvasWidth / 2;
-        const centerY = rect.top + canvasHeight / 2;
-        tooltip.style.left = `${centerX - tooltip.offsetWidth / 2}px`;
-        tooltip.style.top = `${centerY - 10}px`;
+        const iconX = rect.left + currentISS.x;
+        const iconY = rect.top + currentISS.y;
+        const margin = 8;
+        let left = iconX - tooltip.offsetWidth / 2;
+        left = Math.max(margin, Math.min(left, window.innerWidth - tooltip.offsetWidth - margin));
+        let top = iconY - 10;
+        top = Math.max(margin, Math.min(top, window.innerHeight - tooltip.offsetHeight - margin));
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
       } else {
         tooltip.classList.remove('tooltip-visible');
         canvas.classList.remove('cursor-pointer');
@@ -1214,9 +1218,10 @@
 
   function toggleFullScreen() {
     if (!document.fullscreenElement) {
-      if (trackerContainer.requestFullscreen) trackerContainer.requestFullscreen();
-      else if (trackerContainer.webkitRequestFullscreen) trackerContainer.webkitRequestFullscreen();
-      else if (trackerContainer.msRequestFullscreen) trackerContainer.msRequestFullscreen();
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
     } else {
       if (document.exitFullscreen) document.exitFullscreen();
       else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
