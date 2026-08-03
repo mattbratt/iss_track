@@ -11,7 +11,15 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, PANEL_ICON, PANEL_TITLE, PANEL_URL_PATH, STATIC_URL
+from .const import (
+    CONF_UNIT_SYSTEM,
+    DEFAULT_UNIT_SYSTEM,
+    DOMAIN,
+    PANEL_ICON,
+    PANEL_TITLE,
+    PANEL_URL_PATH,
+    STATIC_URL,
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -29,17 +37,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.data[DOMAIN]["static_registered"] = True
 
+    unit_system = entry.options.get(
+        CONF_UNIT_SYSTEM, entry.data.get(CONF_UNIT_SYSTEM, DEFAULT_UNIT_SYSTEM)
+    )
     async_register_built_in_panel(
         hass,
         component_name="iframe",
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
         frontend_url_path=PANEL_URL_PATH,
-        config={"url": f"{STATIC_URL}/my_iss.html"},
+        config={"url": f"{STATIC_URL}/my_iss.html?units={unit_system}"},
         require_admin=False,
         update=True,
     )
+
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry so a changed unit system reaches the panel URL."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

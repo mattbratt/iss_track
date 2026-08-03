@@ -58,20 +58,22 @@
       height: auto;
       aspect-ratio: 2 / 1;
     }
-    :fullscreen #earthCanvas {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      max-width: none;
-      max-height: none;
-      border: none;
-    }
-    :fullscreen #tracker-container {
+    #tracker-container:fullscreen {
       max-width: none;
       width: 100%;
       height: 100%;
       display: flex;
       flex-direction: column;
+      justify-content: center;
+      background: #000;
+    }
+    #tracker-container:fullscreen #earthCanvas {
+      margin: 0;
+      width: 100%;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      border: none;
     }
     #info-panel {
       background-color: #00549F;
@@ -278,7 +280,7 @@
 <body>
 <div id="tracker-container">
     <canvas id="earthCanvas"></canvas>
-    <div id="iss-tooltip" class="tooltip">Click to view live ISS feed</div>
+    <div id="iss-tooltip" class="tooltip">Click to view live video from ISS in pop-up window</div>
     <div id="info-panel">
       <div id="primary-data">
         <div class="data-section">
@@ -350,6 +352,7 @@
   let issTLELine2 = '';
   let fallbackTleUsed = false;
 
+  const trackerContainer = document.getElementById('tracker-container');
   const canvas = document.getElementById('earthCanvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: false });
   const waitmsg = document.getElementById('waitmsg');
@@ -367,7 +370,8 @@
   const tleInfo = document.getElementById('tle-info');
 
   let canvasWidth, canvasHeight;
-  let useMetric = false;
+  let useMetric = new URLSearchParams(window.location.search).get('units') === 'metric';
+  if (useMetric) unitsToggle.classList.add('metric');
   let dayImage = null, nightImage = null, issImage = null, sunImage = null, moonImage = null;
   let imagesLoaded = 0;
   let orbitCache = { pastPts: [], futurePts: [], lastUpdate: 0 };
@@ -932,10 +936,9 @@
         tooltip.classList.add('tooltip-visible');
         canvas.classList.add('cursor-pointer');
         canvas.classList.remove('cursor-default');
-        const tooltipWidth = 150;
         const centerX = rect.left + canvasWidth / 2;
         const centerY = rect.top + canvasHeight / 2;
-        tooltip.style.left = `${centerX - 75}px`;
+        tooltip.style.left = `${centerX - tooltip.offsetWidth / 2}px`;
         tooltip.style.top = `${centerY - 10}px`;
       } else {
         tooltip.classList.remove('tooltip-visible');
@@ -1211,9 +1214,9 @@
 
   function toggleFullScreen() {
     if (!document.fullscreenElement) {
-      if (canvas.requestFullscreen) canvas.requestFullscreen();
-      else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
-      else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
+      if (trackerContainer.requestFullscreen) trackerContainer.requestFullscreen();
+      else if (trackerContainer.webkitRequestFullscreen) trackerContainer.webkitRequestFullscreen();
+      else if (trackerContainer.msRequestFullscreen) trackerContainer.msRequestFullscreen();
     } else {
       if (document.exitFullscreen) document.exitFullscreen();
       else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -1253,6 +1256,11 @@
       updateCanvasSize();
       drawEverything();
     }, 100);
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    updateCanvasSize();
+    drawEverything();
   });
 </script>
 </body>

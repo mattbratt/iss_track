@@ -3,11 +3,30 @@
     "step": {
       "user": {
         "title": "ISS Track",
-        "description": "Add the ISS Track panel to your sidebar? It shows the live position of the International Space Station on a world map, with orbit paths, day/night shading, and live orbital metrics."
+        "description": "Add the ISS Track panel to your sidebar? It shows the live position of the International Space Station on a world map, with orbit paths, day/night shading, and live orbital metrics.",
+        "data": {
+          "unit_system": "Default units"
+        },
+        "data_description": {
+          "unit_system": "Altitude and speed are shown in this system by default. Switch anytime with the toggle on the map."
+        }
       }
     },
     "abort": {
       "single_instance_allowed": "Already configured. Only a single instance is possible."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ISS Track",
+        "data": {
+          "unit_system": "Default units"
+        },
+        "data_description": {
+          "unit_system": "Altitude and speed are shown in this system by default. Switch anytime with the toggle on the map."
+        }
+      }
     }
   }
 }
