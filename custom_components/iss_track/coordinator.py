@@ -583,8 +583,10 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
     def describe(self, item: Pass, sky: str, *, with_path: bool) -> dict[str, Any]:
         """A pass as the panel, card and attributes all receive it."""
         data = item.as_dict(with_path=with_path)
-        matches = self.criteria.matches(item)
+        reason = self.criteria.reason(item)
+        matches = reason is None
         data["matches"] = matches
+        data["reason"] = reason
         data["sky"] = sky
         data["alert"] = matches and sky_allows(sky, self.sky_limit)
         return data

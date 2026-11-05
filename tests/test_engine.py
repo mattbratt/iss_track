@@ -137,6 +137,14 @@ def test_default_criteria_pick_good_and_excellent_bright_evening_passes(found):
     assert [p.start.day for p in found if engine.Criteria(faintest_magnitude=-3.0).matches(p)] == [12]
 
 
+def test_criteria_say_why_a_pass_is_left_out(found):
+    default = engine.Criteria()
+    assert [default.reason(p) for p in found] == [
+        "quality", "quality", None, None, "quality", "quality", None]
+    assert engine.Criteria(faintest_magnitude=-3.0).reason(found[2]) == "brightness"
+    assert engine.Criteria(evening=False, morning=True).reason(found[3]) == "period"
+
+
 def test_as_dict_is_rounded_and_json_ready(found):
     data = found[3].as_dict()
     assert data["quality"] == "excellent"

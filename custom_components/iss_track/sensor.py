@@ -53,6 +53,7 @@ def _next_pass_attrs(
         return None
     data = coordinator.describe(item, book.sky_for(item), with_path=False)
     data.pop("matches", None)
+    data.pop("reason", None)
     return data
 
 

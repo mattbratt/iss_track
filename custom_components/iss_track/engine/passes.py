@@ -140,12 +140,18 @@ class Criteria:
     evening: bool = True
     morning: bool = False
 
-    def matches(self, candidate: Pass) -> bool:
+    def reason(self, candidate: Pass) -> str | None:
+        """Why a pass is left out: "quality", "brightness" or "period". None
+        when it matches. The one place the decision is made."""
         if candidate.quality not in self.qualities:
-            return False
+            return "quality"
         if candidate.magnitude > self.faintest_magnitude:
-            return False
-        return self.evening if candidate.period == PERIOD_EVENING else self.morning
+            return "brightness"
+        wanted = self.evening if candidate.period == PERIOD_EVENING else self.morning
+        return None if wanted else "period"
+
+    def matches(self, candidate: Pass) -> bool:
+        return self.reason(candidate) is None
 
 
 def _elevation(orbit: Orbit, frame: ObserverFrame, when: datetime) -> float:
