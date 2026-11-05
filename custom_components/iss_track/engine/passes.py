@@ -243,7 +243,8 @@ def _resolve(
         end_azimuth=rows[last][1],
         end_elevation=rows[last][2],
         max_elevation=max(row[2] for row in above_rows),
-        magnitude=magnitude,
+        # One decimal, so the figure a limit is compared with is the figure shown.
+        magnitude=round(magnitude, 1),
         quality=quality_for(peak_row[2]),
         period=period,
         starts_in_shadow=first > 0 and rows[first - 1][4] and not rows[first - 1][5],

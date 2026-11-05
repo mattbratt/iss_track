@@ -86,10 +86,14 @@ triggers:
       {{ start is not none
          and now() >= start - timedelta(minutes=lead | int(10))
          and now() < start }}
+  # Home Assistant starting inside the heads-up window: the template above is
+  # already true, so it would never fire. The conditions stop a repeat.
+  - trigger: homeassistant
+    id: heads_up
+    event: start
   - trigger: state
     id: start
     entity_id: !input in_progress
-    from: "off"
     to: "on"
   - trigger: state
     id: end
@@ -125,14 +129,24 @@ variables:
     Look {{ pass.start_direction }}; it heads to the {{ pass.end_direction }}
     over {{ ((pass.duration_seconds or 0) / 60) | round(0) | int(0) }} minutes.{% endif %}
 
-# The sky check uses the pass the trigger is about. When a pass ends, the
-# next-pass sensor has already moved on, so the ended pass's own flag is used.
+# One decision per pass. The heads-up runs once, inside its window. The start
+# runs when the sky allows it. The end runs only when the start did, so a
+# forecast that changes during the pass can never leave the two out of step.
 conditions:
   - condition: template
     value_template: >-
-      {% if not respect_sky %}true
-      {% elif trigger.id == 'end' %}{{ trigger.from_state.attributes.get('alert', true) }}
-      {% else %}{{ pass.alert in (true, none) }}{% endif %}
+      {% set last = this.attributes.last_triggered | as_datetime(none) %}
+      {% set sky_ok = not respect_sky or pass.alert in (true, none) %}
+      {% if trigger.id == 'end' %}
+        {{ last is not none and last >= trigger.from_state.last_changed }}
+      {% elif trigger.id == 'start' %}
+        {{ sky_ok }}
+      {% else %}
+        {% set start = pass.start | as_datetime(none) %}
+        {% set opens = none if start is none else start - timedelta(minutes=lead | int(10)) %}
+        {{ sky_ok and opens is not none and opens <= now() < start
+           and (last is none or last < opens) }}
+      {% endif %}
 
 actions:
   - choose:

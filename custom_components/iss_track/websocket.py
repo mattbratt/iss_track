@@ -31,7 +31,12 @@ from .const import (
     TRACK_SPAN,
     TRACK_STEP_SECONDS,
 )
-from .coordinator import IssTrackCoordinator, ObserverBook, observer_from_state
+from .coordinator import (
+    IssTrackCoordinator,
+    ObserverBook,
+    async_add_change_listener,
+    observer_from_state,
+)
 from .engine import (
     QUALITIES,
     SKY_LIMITS,
@@ -51,6 +56,7 @@ def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_passes)
     websocket_api.async_register_command(hass, ws_settings_get)
     websocket_api.async_register_command(hass, ws_settings_set)
+    websocket_api.async_register_command(hass, ws_subscribe)
 
 
 def _coordinator(hass: HomeAssistant) -> IssTrackCoordinator | None:
@@ -83,7 +89,7 @@ async def ws_track(
     end = now + TRACK_SPAN
     try:
         points = await hass.async_add_executor_job(
-            ground_track, coordinator.orbit, start, end, TRACK_STEP_SECONDS
+            ground_track, coordinator.orbit.copy(), start, end, TRACK_STEP_SECONDS
         )
     except OrbitError as err:
         connection.send_error(msg["id"], "orbit_error", str(err))
@@ -223,6 +229,21 @@ async def ws_passes(
             "settings": coordinator.settings(),
         },
     )
+
+
+@websocket_api.websocket_command({vol.Required("type"): "iss_track/subscribe"})
+@callback
+def ws_subscribe(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Tell the panel or card when passes, sky or pass settings change."""
+
+    @callback
+    def forward() -> None:
+        connection.send_message(websocket_api.event_message(msg["id"], {"changed": True}))
+
+    connection.subscriptions[msg["id"]] = async_add_change_listener(hass, forward)
+    connection.send_result(msg["id"])
 
 
 def _settings_payload(

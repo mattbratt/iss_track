@@ -26,6 +26,7 @@ from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import (
+    async_call_later,
     async_track_point_in_utc_time,
     async_track_state_change_event,
     async_track_time_interval,
@@ -89,6 +90,8 @@ STORAGE_VERSION = 1
 _ADHOC_LIMIT = 8
 _ADHOC_TTL = timedelta(hours=1)
 _FORECAST_REACH = timedelta(minutes=90)
+_SKY_RETRY_SECONDS = 120
+_DATA_LISTENERS = "change_listeners"
 
 type IssTrackConfigEntry = ConfigEntry[IssTrackCoordinator]
 
@@ -143,6 +146,31 @@ class ObserverBook:
         return self.sky.get(item.start, SKY_UNKNOWN)
 
 
+@callback
+def async_add_change_listener(hass: HomeAssistant, listener: CALLBACK_TYPE) -> CALLBACK_TYPE:
+    """Call listener whenever passes, sky or pass settings change.
+
+    The registry outlives a reload of the entry, so an open panel or card
+    keeps hearing about changes afterwards.
+    """
+    listeners: set[CALLBACK_TYPE] = hass.data.setdefault(DOMAIN, {}).setdefault(
+        _DATA_LISTENERS, set()
+    )
+    listeners.add(listener)
+
+    @callback
+    def remove() -> None:
+        listeners.discard(listener)
+
+    return remove
+
+
+@callback
+def async_notify_changed(hass: HomeAssistant) -> None:
+    for listener in list(hass.data.get(DOMAIN, {}).get(_DATA_LISTENERS, ())):
+        listener()
+
+
 def observer_from_state(state: State | None) -> Observer | None:
     """An observer from any entity that reports latitude and longitude."""
     if state is None:
@@ -184,6 +212,9 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
         self._unsub_edge: CALLBACK_TYPE | None = None
         self._forecast: list[tuple[datetime, str]] = []
         self._current_sky = SKY_UNKNOWN
+        self._forecast_entity: str | None = None
+        self._sky_retry: CALLBACK_TYPE | None = None
+        self._closed = False
         self._adhoc: dict[tuple[float, float, str], tuple[datetime, list[Pass]]] = {}
 
     # ----- settings, read from the one options record ---------------------
@@ -280,8 +311,14 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
                 async_track_state_change_event(hass, self.people, self._handle_person)
             )
         await self.async_config_entry_first_refresh()
+        async_notify_changed(self.hass)
 
     async def async_shutdown(self) -> None:
+        # Work still in flight checks this, so it cannot re-arm a timer.
+        self._closed = True
+        if self._sky_retry is not None:
+            self._sky_retry()
+            self._sky_retry = None
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
@@ -296,6 +333,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
         self._annotate_sky()
         self._schedule_edge()
         await self.async_refresh()
+        async_notify_changed(self.hass)
 
     # ----- the live tick --------------------------------------------------
 
@@ -408,7 +446,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
         observer = book.observer
         try:
             book.passes = await self.hass.async_add_executor_job(
-                find_passes, self.orbit, observer, now - PASS_LOOKBACK, now + PASS_HORIZON
+                find_passes, self.orbit.copy(), observer, now - PASS_LOOKBACK, now + PASS_HORIZON
             )
         except OrbitError as err:
             _LOGGER.warning("Could not compute passes for %s: %s", book.name, err)
@@ -418,9 +456,12 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
     async def _async_recompute(self, books: list[ObserverBook]) -> None:
         for book in books:
             await self._async_compute(book)
+        if self._closed:
+            return
         self._annotate_sky()
         self._schedule_edge()
         await self.async_refresh()
+        async_notify_changed(self.hass)
 
     async def _async_recompute_all(self) -> None:
         await self._async_recompute(list(self.books.values()))
@@ -470,7 +511,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             passes = cached[1]
         else:
             passes = await self.hass.async_add_executor_job(
-                find_passes, self.orbit, observer, now - PASS_LOOKBACK, now + PASS_HORIZON
+                find_passes, self.orbit.copy(), observer, now - PASS_LOOKBACK, now + PASS_HORIZON
             )
             self._adhoc[key] = (now, passes)
             while len(self._adhoc) > _ADHOC_LIMIT:
@@ -485,6 +526,8 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
         if self._unsub_edge is not None:
             self._unsub_edge()
             self._unsub_edge = None
+        if self._closed:
+            return
         now = dt_util.utcnow()
         criteria = self.criteria
         edges: list[datetime] = []
@@ -512,15 +555,30 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
     # ----- sky ------------------------------------------------------------
 
     async def _async_load_forecast(self) -> None:
-        """Read the weather entity's hourly forecast and current condition."""
-        self._forecast = []
-        self._current_sky = SKY_UNKNOWN
+        """Read the weather entity's hourly forecast and current condition.
+
+        A weather entity that is not ready yet keeps the last good forecast
+        and is asked again soon, so one bad moment never turns every pass's
+        sky into "unknown".
+        """
         entity_id = self.weather_entity
+        if entity_id != self._forecast_entity:
+            self._forecast = []
+            self._current_sky = SKY_UNKNOWN
+            self._forecast_entity = entity_id
+        if self._sky_retry is not None:
+            self._sky_retry()
+            self._sky_retry = None
         if entity_id is None:
             return
         state = self.hass.states.get(entity_id)
-        if state is not None and state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
-            self._current_sky = classify_sky(state.attributes.get("cloud_coverage"), state.state)
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            if not self._closed:
+                self._sky_retry = async_call_later(
+                    self.hass, _SKY_RETRY_SECONDS, self._handle_sky_timer
+                )
+            return
+        self._current_sky = classify_sky(state.attributes.get("cloud_coverage"), state.state)
         try:
             response = await self.hass.services.async_call(
                 "weather",
@@ -530,17 +588,22 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
                 return_response=True,
             )
         except (HomeAssistantError, ValueError) as err:
+            # No hourly forecast from this entity: its current condition still
+            # covers a pass that is about to start.
             _LOGGER.debug("No hourly forecast from %s: %s", entity_id, err)
+            self._forecast = []
             return
         rows = ((response or {}).get(entity_id) or {}).get("forecast") or []
+        forecast: list[tuple[datetime, str]] = []
         for row in rows:
             when = dt_util.parse_datetime(str(row.get("datetime")))
             if when is None:
                 continue
-            self._forecast.append(
+            forecast.append(
                 (dt_util.as_utc(when), classify_sky(row.get("cloud_coverage"), row.get("condition")))
             )
-        self._forecast.sort(key=lambda item: item[0])
+        forecast.sort(key=lambda item: item[0])
+        self._forecast = forecast
 
     def _sky_for_passes(self, observer: Observer | None, passes: list[Pass]) -> dict[datetime, str]:
         home = self.books[OBSERVER_HOME].observer if OBSERVER_HOME in self.books else None
@@ -574,9 +637,13 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             book.sky = self._sky_for_passes(book.observer, book.passes)
 
     async def _handle_sky_timer(self, _now: datetime) -> None:
+        self._sky_retry = None
+        if self._closed:
+            return
         await self._async_load_forecast()
         self._annotate_sky()
         self.async_update_listeners()
+        async_notify_changed(self.hass)
 
     # ----- shared wording of one pass, for the API and attributes ----------
 

@@ -213,6 +213,10 @@ class Orbit:
         )
         self.period_minutes = _TWO_PI / self._sat.no_kozai
 
+    def copy(self) -> Orbit:
+        """A separate propagator for the same elements, for another thread."""
+        return Orbit(self.line1, self.line2)
+
     def teme(self, when: datetime) -> tuple[Vector, Vector, float]:
         """Inertial position (km), velocity (km/s) and sidereal time (rad)."""
         jd, fr = julian(when)
