@@ -1,6 +1,6 @@
 # ISS Track
 
-A Home Assistant integration to track the International Space Station (ISS) in real time, and to tell you when you can see it. Inspired by the European Space Agency's [ESA ISS Tracker](https://isstracker.spaceflight.esa.int/). The map styling is the only element carried over from the ESA solution; the implementation here is entirely different, with the following features (* = differs from the ESA implementation):
+A Home Assistant integration that tracks the International Space Station (ISS) in real time and tells you when you can see it from where you are.
 
 <img width="1000" height="573" alt="image" src="https://github.com/user-attachments/assets/f7c90b72-0945-48d1-91d4-f0ad0052eda1" />
 
@@ -8,14 +8,13 @@ A Home Assistant integration to track the International Space Station (ISS) in r
 ## Features
 - Displays the current position of the ISS on a world map with day/night shading and orbit paths (1.5 hours ahead and behind).
 - Shows live data including latitude, longitude, altitude, speed, and ISS time.
-- Adds an "ISS Track" panel to the Home Assistant sidebar automatically, with no manual dashboard setup. *
-- Predicts the passes you can actually see: the station in sunlight, your sky dark, and the station at least 10° up. *
-- Rates each pass (Poor, Fair, Good, Excellent) and estimates its brightness, and lets you choose which ones count. *
-- Works for your home location, for the device you are holding, and optionally for chosen people. *
-- Exposes everything as entities, a calendar and a dashboard card, so automations can act on a pass. *
-- Optional sky forecast from any weather entity, so alerts can skip a cloudy pass. *
-- Defaults to imperial units, with a metric toggle. *
-- Larger map display, 3x larger. *
+- Adds an "ISS Track" panel to the Home Assistant sidebar automatically, with no manual dashboard setup.
+- Predicts the passes you can actually see: the station in sunlight, your sky dark, and the station at least 10° up.
+- Rates each pass (Poor, Fair, Good, Excellent) and estimates its brightness, and lets you choose which ones count.
+- Works for your home location, for the device you are holding, and optionally for chosen people.
+- Exposes everything as entities, a calendar and a dashboard card, so automations can act on a pass.
+- Optional sky forecast from any weather entity, so alerts can skip a cloudy pass.
+- Imperial or metric units, with a toggle on the map.
 - Fetches fresh ISS orbital elements (TLE) from Celestrak every 2 hours and keeps the last good set if Celestrak cannot be reached.
 - Click the ISS icon to open a live video feed from the ISS (via YouTube).
 
@@ -23,15 +22,12 @@ A Home Assistant integration to track the International Space Station (ISS) in r
 
 Requires Home Assistant 2024.12 or newer.
 
-### HACS (recommended)
-1. In HACS, add this repository as a custom repository (category: Integration), or install "ISS Track" if it is available in the HACS store.
-2. Install **ISS Track** and restart Home Assistant.
+1. Open **Settings > Marketplace**. Search for **ISS Track**, or add `https://github.com/mattbratt/iss_track` as a custom repository of type Integration.
+2. Download **ISS Track** and restart Home Assistant.
 3. Go to **Settings > Devices & Services > Add Integration** and search for **ISS Track**.
 4. An "ISS Track" panel appears in the sidebar.
 
-### Manual
-1. Copy `custom_components/iss_track/` into `custom_components/` in your Home Assistant configuration directory.
-2. Restart Home Assistant, then add the integration under **Settings > Devices & Services**.
+The Marketplace is built into Home Assistant from 2026.11. On older versions, do steps 1 and 2 in HACS instead.
 
 All frontend assets (map images, fonts, the panel and the card) are served directly from the integration, so nothing needs to be copied into `config/www/`. The one Python dependency (`sgp4`, for the orbit calculation) is installed by Home Assistant.
 
@@ -153,6 +149,7 @@ pytest tests
 ```
 
 ## Credits
+- Map styling inspired by the European Space Agency's [ESA ISS Tracker](https://isstracker.spaceflight.esa.int/). Everything else is its own implementation.
 - Uses [`sgp4`](https://github.com/brandon-rhodes/python-sgp4) for orbital calculations.
 - Uses [`astronomy.browser.js`](https://github.com/cosinekitty/astronomy) for moon position calculations.
 - Orbital elements courtesy of [Celestrak](https://celestrak.org/).
