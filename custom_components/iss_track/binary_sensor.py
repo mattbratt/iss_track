@@ -46,4 +46,5 @@ class PassInProgress(IssTrackEntity, BinarySensorEntity):
         book = self.book
         if item is None or book is None:
             return None
-        return {"end": item.end.isoformat(), "sky": book.sky_for(item)}
+        described = self.coordinator.describe(item, book.sky_for(item), with_path=False)
+        return {"end": described["end"], "sky": described["sky"], "alert": described["alert"]}
