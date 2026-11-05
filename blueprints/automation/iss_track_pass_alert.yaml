@@ -1,0 +1,164 @@
+blueprint:
+  name: ISS Track - pass alert
+  description: >-
+    Runs your actions a few minutes before a visible ISS pass that matches your
+    ISS Track pass settings, and optionally again when it starts and ends.
+    Three variables are ready for your actions: `title`, `message` and `pass`
+    (every detail of the pass, such as `pass.peak_elevation` and
+    `pass.start_direction`).
+  domain: automation
+  author: mattbratt
+  source_url: https://github.com/mattbratt/iss_track/blob/main/blueprints/automation/iss_track_pass_alert.yaml
+  homeassistant:
+    min_version: 2024.12.0
+  input:
+    next_pass:
+      name: Next pass sensor
+      description: >-
+        The ISS Track "Next pass" sensor. Use the one for home, or a tracked
+        person's.
+      default: sensor.iss_track_next_pass
+      selector:
+        entity:
+          filter:
+            - integration: iss_track
+              domain: sensor
+              device_class: timestamp
+    in_progress:
+      name: Pass in progress sensor
+      description: The ISS Track "Pass in progress" sensor for the same location.
+      default: binary_sensor.iss_track_pass_in_progress
+      selector:
+        entity:
+          filter:
+            - integration: iss_track
+              domain: binary_sensor
+    lead_minutes:
+      name: Heads-up
+      description: How long before the pass starts to run the actions.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: min
+          mode: slider
+    respect_sky:
+      name: Skip when the sky is too cloudy
+      description: >-
+        Uses the sky limit in your pass settings. A pass with no forecast yet
+        is never skipped.
+      default: true
+      selector:
+        boolean:
+    heads_up_actions:
+      name: Before the pass
+      description: >-
+        For example a notification with title `{{ title }}` and message
+        `{{ message }}`.
+      default: []
+      selector:
+        action:
+    start_actions:
+      name: When the pass starts
+      description: For example, dim the porch light.
+      default: []
+      selector:
+        action:
+    end_actions:
+      name: When the pass ends
+      default: []
+      selector:
+        action:
+
+mode: queued
+max: 4
+
+trigger_variables:
+  next_pass_entity: !input next_pass
+  lead: !input lead_minutes
+
+triggers:
+  - trigger: template
+    id: heads_up
+    value_template: >-
+      {% set start = states(next_pass_entity) | as_datetime(none) %}
+      {{ start is not none
+         and now() >= start - timedelta(minutes=lead | int(10))
+         and now() < start }}
+  # Home Assistant starting inside the heads-up window: the template above is
+  # already true, so it would never fire. The conditions stop a repeat.
+  - trigger: homeassistant
+    id: heads_up
+    event: start
+  - trigger: state
+    id: start
+    entity_id: !input in_progress
+    to: "on"
+  - trigger: state
+    id: end
+    entity_id: !input in_progress
+    from: "on"
+    to: "off"
+
+variables:
+  respect_sky: !input respect_sky
+  pass: >-
+    {{ {
+      'start': state_attr(next_pass_entity, 'start'),
+      'end': state_attr(next_pass_entity, 'end'),
+      'duration_seconds': state_attr(next_pass_entity, 'duration_seconds'),
+      'quality': state_attr(next_pass_entity, 'quality'),
+      'peak_elevation': state_attr(next_pass_entity, 'peak_elevation'),
+      'peak_direction': state_attr(next_pass_entity, 'peak_direction'),
+      'start_direction': state_attr(next_pass_entity, 'start_direction'),
+      'end_direction': state_attr(next_pass_entity, 'end_direction'),
+      'magnitude': state_attr(next_pass_entity, 'magnitude'),
+      'sky': state_attr(next_pass_entity, 'sky'),
+      'alert': state_attr(next_pass_entity, 'alert')
+    } }}
+  title: >-
+    {% if trigger.id == 'heads_up' %}ISS pass in {{ lead | int(10) }} minute{{ '' if lead | int(10) == 1 else 's' }}
+    {% elif trigger.id == 'start' %}The ISS is visible now
+    {% else %}ISS pass over{% endif %}
+  message: >-
+    {% set quality = (pass.quality or 'visible') | title %}
+    {% set peak = pass.peak_elevation | round(0) | int(0) %}
+    {% if trigger.id == 'end' %}The ISS has passed out of view.
+    {% else %}{{ quality }} pass, {{ peak }}° high, magnitude {{ pass.magnitude }}.
+    Look {{ pass.start_direction }}; it heads to the {{ pass.end_direction }}
+    over {{ ((pass.duration_seconds or 0) / 60) | round(0) | int(0) }} minutes.{% endif %}
+
+# One decision per pass. The heads-up runs once, inside its window. The start
+# runs when the sky allows it. The end runs only when the start did, so a
+# forecast that changes during the pass can never leave the two out of step.
+conditions:
+  - condition: template
+    value_template: >-
+      {% set last = this.attributes.last_triggered | as_datetime(none) %}
+      {% set sky_ok = not respect_sky or pass.alert in (true, none) %}
+      {% if trigger.id == 'end' %}
+        {{ last is not none and last >= trigger.from_state.last_changed }}
+      {% elif trigger.id == 'start' %}
+        {{ sky_ok }}
+      {% else %}
+        {% set start = pass.start | as_datetime(none) %}
+        {% set opens = none if start is none else start - timedelta(minutes=lead | int(10)) %}
+        {{ sky_ok and opens is not none and opens <= now() < start
+           and (last is none or last < opens) }}
+      {% endif %}
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: heads_up
+        sequence: !input heads_up_actions
+      - conditions:
+          - condition: trigger
+            id: start
+        sequence: !input start_actions
+      - conditions:
+          - condition: trigger
+            id: end
+        sequence: !input end_actions

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "ISS Track",
-        "description": "Add the ISS Track panel to your sidebar? It shows the live position of the International Space Station on a world map, with orbit paths, day/night shading, and live orbital metrics.",
+        "description": "Add ISS Track? You get a live map panel in the sidebar, entities for the station's position, and predictions of the passes you can see from home.",
         "data": {
           "unit_system": "Default units"
         },
@@ -20,13 +20,95 @@
     "step": {
       "init": {
         "title": "ISS Track",
+        "description": "Pass settings decide which visible passes count. They are shared by the entities, the calendar, the map panel and the dashboard card.",
         "data": {
-          "unit_system": "Default units"
+          "unit_system": "Default units",
+          "qualities": "Pass quality to include",
+          "faintest_magnitude": "Minimum brightness (magnitude)",
+          "evening": "Evening passes, after sunset",
+          "morning": "Morning passes, before sunrise",
+          "weather_entity": "Weather entity for the sky forecast",
+          "sky_limit": "Alert when the sky is",
+          "people": "Also predict passes for these people",
+          "update_interval": "Position update interval"
         },
         "data_description": {
-          "unit_system": "Altitude and speed are shown in this system by default. Switch anytime with the toggle on the map."
+          "unit_system": "Altitude and speed on the map are shown in this system by default.",
+          "qualities": "Judged on the highest point reached while the station is visible.",
+          "faintest_magnitude": "Lower is brighter. -2 is easy from the suburbs, -3 is unmissable, 1 needs a dark site. Brightness is an estimate.",
+          "weather_entity": "Optional. A pass with no forecast yet is never skipped.",
+          "sky_limit": "Used by alerts and the dashboard card. The pass list and calendar never drop a pass for weather.",
+          "people": "Each person gets their own pass entities, following the location their Home Assistant app reports.",
+          "update_interval": "How often the live position entities update. Pass start and end are always exact to the second."
         }
       }
+    },
+    "error": {
+      "no_quality": "Choose at least one pass quality.",
+      "no_period": "Choose evening passes, morning passes, or both."
+    }
+  },
+  "selector": {
+    "quality": {
+      "options": {
+        "excellent": "Excellent: 61-90°, high, bright, hard to miss",
+        "good": "Good: 41-60°, strong and reliable",
+        "fair": "Fair: 21-40°, visible if you know where to look",
+        "poor": "Poor: 10-20°, easy to miss"
+      }
+    },
+    "sky_limit": {
+      "options": {
+        "any": "Any sky",
+        "partly_cloudy": "Partly cloudy or better",
+        "clear": "Clear only"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "latitude": { "name": "Latitude" },
+      "longitude": { "name": "Longitude" },
+      "altitude": { "name": "Altitude" },
+      "speed": { "name": "Speed" },
+      "position": { "name": "Position" },
+      "tle_updated": { "name": "TLE updated" },
+      "elevation": { "name": "Elevation" },
+      "azimuth": { "name": "Azimuth" },
+      "distance": { "name": "Distance" },
+      "next_pass": { "name": "Next pass" },
+      "next_pass_quality": {
+        "name": "Next pass quality",
+        "state": {
+          "poor": "Poor",
+          "fair": "Fair",
+          "good": "Good",
+          "excellent": "Excellent"
+        }
+      },
+      "next_pass_peak_elevation": { "name": "Next pass peak elevation" },
+      "next_pass_magnitude": { "name": "Next pass magnitude" },
+      "next_pass_sky": {
+        "name": "Next pass sky",
+        "state": {
+          "clear": "Clear",
+          "partly_cloudy": "Partly cloudy",
+          "cloudy": "Cloudy",
+          "unknown": "No forecast yet"
+        }
+      }
+    },
+    "binary_sensor": {
+      "pass_in_progress": { "name": "Pass in progress" }
+    },
+    "calendar": {
+      "passes": { "name": "Passes" }
+    }
+  },
+  "issues": {
+    "stale_tle": {
+      "title": "ISS Track orbital data is out of date",
+      "description": "ISS Track has not been able to fetch fresh orbital data from Celestrak for more than three days. The map and pass predictions drift further from reality the longer this lasts. Check that Home Assistant can reach celestrak.org; the data refreshes by itself once it can."
     }
   }
 }

@@ -1,0 +1,31 @@
+name: Release
+
+# Attaches iss_track.zip to every published release. hacs.json points the
+# Marketplace (and HACS) at that asset, which is also what lets them show a
+# download count. The zip holds the files of custom_components/iss_track at
+# its root, not nested in a folder.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build iss_track.zip
+        run: |
+          cd custom_components/iss_track
+          zip -r "$GITHUB_WORKSPACE/iss_track.zip" . -x "*__pycache__*" "*.pyc"
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" iss_track.zip --clobber

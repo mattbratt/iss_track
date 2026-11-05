@@ -3,11 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>ISS Tracker</title>
-  <!-- Preload satellite.js to start fetching it early, reducing load time -->
-  <link rel="preload" href="satellite.min.js" as="script">
-
   <!-- Preload libraries and images to fetch them early, improving initial render speed -->
-  <script src="satellite.min.js" defer></script>
   <script src="astronomy.browser.js" defer></script>
   <link rel="preload" href="images/mapday.jpg" as="image">
   <link rel="preload" href="images/mapnight.jpg" as="image">
@@ -275,6 +271,308 @@
         white-space: nowrap;
       }
     }
+    /* ----- visible passes drawer and pass settings sheet ----- */
+    :root {
+      --iss-text: #fff;
+      --iss-text2: rgba(255, 255, 255, 0.72);
+      --iss-text3: rgba(255, 255, 255, 0.45);
+      --iss-border: rgba(255, 255, 255, 0.16);
+      --iss-ok: #5dcaa5;
+      --iss-info: #85b7eb;
+      --iss-warn: #fac775;
+      --iss-ok-bg: rgba(93, 202, 165, 0.16);
+      --iss-info-bg: rgba(133, 183, 235, 0.16);
+      --iss-warn-bg: rgba(250, 199, 117, 0.16);
+      --iss-neutral-bg: rgba(255, 255, 255, 0.1);
+    }
+    #passes {
+      width: 100%;
+      box-sizing: border-box;
+      background: #2f2f2f;
+      border: 1px solid #666;
+      border-top: 0;
+      padding: 10px 14px 14px;
+    }
+    :fullscreen #passes {
+      display: none;
+    }
+    #passes button, .ps-sheet button, .ps-sheet select {
+      font-family: inherit;
+      color: var(--iss-text);
+      background: transparent;
+      border: 1px solid var(--iss-border);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #passes button:hover, .ps-sheet button:hover {
+      background: var(--iss-neutral-bg);
+    }
+    #passes button:focus-visible, .ps-sheet button:focus-visible,
+    .ps-sheet select:focus-visible, .ps-sheet input:focus-visible {
+      outline: 2px solid var(--iss-info);
+      outline-offset: 1px;
+    }
+    .ps-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #passes #ps-toggle {
+      font-size: 1.05rem;
+      font-weight: 700;
+      border: 0;
+      padding: 6px 4px;
+    }
+    #ps-chevron {
+      display: inline-block;
+      color: var(--iss-text2);
+      transition: transform 0.2s ease;
+    }
+    #passes.closed #ps-chevron {
+      transform: rotate(-90deg);
+    }
+    #passes.closed #ps-body {
+      display: none;
+    }
+    .ps-summary {
+      font-size: 0.85rem;
+      color: var(--iss-text2);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ps-seg {
+      display: flex;
+      border: 1px solid var(--iss-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #passes .ps-seg button, .ps-sheet .ps-seg button {
+      border: 0;
+      border-radius: 0;
+      font-size: 0.85rem;
+      padding: 7px 12px;
+      color: var(--iss-text2);
+    }
+    #passes .ps-seg button.on, .ps-sheet .ps-seg button.on {
+      background: var(--iss-info-bg);
+      color: var(--iss-info);
+    }
+    .ps-sheet .ps-seg button:disabled {
+      color: var(--iss-text3);
+      cursor: default;
+      background: transparent;
+    }
+    .ps-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 6px 9px;
+    }
+    .ps-note {
+      font-size: 0.8rem;
+      color: var(--iss-text3);
+      margin: 10px 0;
+    }
+    #ps-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 190px;
+      gap: 14px;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    #ps-hero.live {
+      box-shadow: inset 0 0 0 1px var(--iss-ok);
+    }
+    #ps-hero.plain {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .ps-label {
+      font-size: 0.8rem;
+      color: var(--iss-text3);
+      margin: 0;
+    }
+    .ps-big {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 2px 0 6px;
+    }
+    .ps-sub {
+      font-size: 0.85rem;
+      color: var(--iss-text2);
+      margin: 0 0 10px;
+    }
+    .ps-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ps-bar {
+      height: 4px;
+      background: var(--iss-neutral-bg);
+      border-radius: 999px;
+      margin: 0 0 10px;
+      overflow: hidden;
+    }
+    .ps-bar div {
+      height: 4px;
+      background: var(--iss-ok);
+    }
+    .ps-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) 96px 44px 48px 112px minmax(0, 1fr) 150px;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 0;
+      border-top: 1px solid var(--iss-border);
+      font-size: 0.85rem;
+    }
+    .ps-row.off .ps-when, .ps-row.off .ps-num, .ps-row.off .ps-dir {
+      color: var(--iss-text3);
+    }
+    .ps-num {
+      text-align: right;
+    }
+    .ps-dir {
+      color: var(--iss-text2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ps-status {
+      text-align: right;
+    }
+    .ps-sheet {
+      background: #2f2f2f;
+      color: var(--iss-text);
+      border: 1px solid #666;
+      border-radius: 12px;
+      padding: 18px 20px;
+      width: 92%;
+      max-width: 640px;
+      max-height: 92vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+      position: relative;
+    }
+    .ps-sheet h2 {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    .ps-sheet-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .ps-sheet-head .iss-pill {
+      margin-left: auto;
+    }
+    .ps-h {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--iss-text2);
+      margin: 16px 0 8px;
+    }
+    .ps-q {
+      display: grid;
+      grid-template-columns: 20px 92px 56px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 7px 0;
+      font-size: 0.85rem;
+      color: var(--iss-text2);
+      cursor: pointer;
+    }
+    .ps-q .iss-pill {
+      justify-self: start;
+    }
+    .ps-check {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.85rem;
+      padding: 6px 0;
+      cursor: pointer;
+    }
+    .ps-sheet input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--iss-info);
+    }
+    .ps-sheet input[type="range"] {
+      flex: 1;
+      accent-color: var(--iss-info);
+    }
+    .ps-slider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: var(--iss-text3);
+    }
+    .ps-sheet select {
+      width: 100%;
+      font-size: 0.85rem;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      background: #2f2f2f;
+    }
+    .ps-two {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0 22px;
+    }
+    #ps-status {
+      font-size: 0.8rem;
+      color: var(--iss-text3);
+      margin: 16px 0 0;
+      min-height: 1.2em;
+    }
+    #ps-status.bad {
+      color: var(--iss-warn);
+    }
+    @media screen and (max-width: 768px) {
+      .ps-row {
+        grid-template-columns: minmax(0, 1.4fr) 92px 40px 44px 130px;
+      }
+      .ps-row .ps-sky, .ps-row .ps-dir {
+        display: none;
+      }
+      #ps-hero {
+        grid-template-columns: minmax(0, 1fr) 120px;
+      }
+      .ps-summary {
+        display: none;
+      }
+    }
+    @media screen and (max-width: 480px) {
+      .ps-row {
+        grid-template-columns: minmax(0, 1fr) 88px 40px;
+      }
+      .ps-row .ps-mag, .ps-row .ps-status {
+        display: none;
+      }
+      .ps-head {
+        gap: 6px;
+      }
+      #passes #ps-toggle {
+        font-size: 0.95rem;
+        padding: 6px 2px;
+      }
+      #passes .ps-seg {
+        margin-left: auto;
+      }
+      #passes .ps-seg button {
+        padding: 7px 8px;
+        font-size: 0.8rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -313,8 +611,25 @@
       <div id="fullscreen-toggle">⛶</div>
       <div id="tle-info"></div>
     </div>
+    <section id="passes" hidden>
+      <div class="ps-head">
+        <button id="ps-toggle" aria-expanded="true" title="VISIBLE PASSES: show or hide the list of passes you can see.">Visible passes <span id="ps-chevron" aria-hidden="true">▾</span></button>
+        <span id="ps-summary" class="ps-summary"></span>
+        <div class="ps-seg" role="group" aria-label="Location">
+          <button id="ps-home" title="HOME: predict passes for the home location set in Home Assistant.">⌂ Home</button>
+          <button id="ps-device" title="THIS DEVICE: predict passes for where you are right now.">◎ This device</button>
+        </div>
+        <button id="ps-gear" class="ps-icon" aria-label="Pass settings" title="PASS SETTINGS: choose which passes count, for the panel and the entities alike.">⚙</button>
+      </div>
+      <div id="ps-body">
+        <p id="ps-note" class="ps-note"></p>
+        <div id="ps-hero" class="plain"></div>
+        <p id="ps-count" class="ps-note"></p>
+        <div id="ps-list"></div>
+      </div>
+    </section>
   </div>
-  <div id="waitmsg">Loading TLE data...</div>
+  <div id="waitmsg">Loading ISS Track…</div>
   <div id="videoModal" class="modal">
     <div class="modal-content">
       <span class="close">×</span>
@@ -327,6 +642,9 @@
       </iframe>
     </div>
   </div>
+  <div id="settingsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="ps-sheet-title">
+    <div class="ps-sheet" id="ps-sheet"></div>
+  </div>
 
 <script>
   const PI = Math.PI;
@@ -335,22 +653,36 @@
 
   let currentISS = { x: 0, y: 0, size: 50, valid: false };
 
-  const TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=2le';
-  const DUMMY_TLE_LINE1 = "1 25544U 98067A   26208.37844919  .00011554  00000+0  21591-3 0  9999";
-  const DUMMY_TLE_LINE2 = "2 25544  51.6322 101.1989 0007008 342.7043  17.3706 15.49203967577984";
-  const TLE_COOKIE_NAME = "iss_tle_cache";
-  const TLE_CACHE_DURATION_MS = 2 * 3600 * 1000;
-
   const DAYIMAGESRC = 'images/mapday.jpg';
   const NIGHTIMAGESRC = 'images/mapnight.jpg';
   const ISSIMAGESRC = 'images/iss_tiny.png';
   const SUNIMAGESRC = 'images/sun_128.png';
   const MOONIMAGESRC = 'images/moon_128.png';
 
-  let lastTleUpdateTime = null;
-  let issTLELine1 = '';
-  let issTLELine2 = '';
-  let fallbackTleUsed = false;
+  // Everything about the orbit comes from the integration. This page draws
+  // the track it is given and computes no position of its own.
+  let hass = null;
+  let track = null;
+  let trackTimer = null;
+  let unitsChosen = false;
+  let overlay = { observer: null, pass: null };
+  const hassWaiters = [];
+  const TRACK_REFRESH_MS = 5 * 60 * 1000;
+  const TRACK_RETRY_MS = 15 * 1000;
+
+  // Called by the sidebar panel that hosts this page, on every state change.
+  window.issTrackSetHass = function (value) {
+    const first = hass === null;
+    hass = value;
+    while (hassWaiters.length) hassWaiters.shift()(value);
+    if (first) window.dispatchEvent(new CustomEvent('iss-track-hass'));
+  };
+  window.issTrackGetHass = () => hass;
+  // The passes drawer tells the map whose sky to ring and which pass to mark.
+  window.issTrackSetOverlay = function (value) {
+    overlay = value || { observer: null, pass: null };
+    if (isInitialized) drawEverything();
+  };
 
   const canvas = document.getElementById('earthCanvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: false });
@@ -369,12 +701,9 @@
   const tleInfo = document.getElementById('tle-info');
 
   let canvasWidth, canvasHeight;
-  let useMetric = new URLSearchParams(window.location.search).get('units') === 'metric';
-  if (useMetric) unitsToggle.classList.add('metric');
+  let useMetric = false;
   let dayImage = null, nightImage = null, issImage = null, sunImage = null, moonImage = null;
   let imagesLoaded = 0;
-  let orbitCache = { pastPts: [], futurePts: [], lastUpdate: 0 };
-  const ORBIT_CACHE_DURATION = 30 * 60 * 1000;
 
   let isInitialized = false;
 
@@ -402,7 +731,7 @@
     ctx.restore();
   }
 
-  function drawViewCircle(lat, lon, angularRadiusRad) {
+  function drawViewCircle(lat, lon, angularRadiusRad, color = 'rgba(0, 255, 0, 0.5)') {
     const numPoints = 100;
     ctx.beginPath();
     for (let i = 0; i <= numPoints; i++) {
@@ -424,7 +753,7 @@
       else ctx.lineTo(x, y);
     }
     ctx.closePath();
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.stroke();
   }
@@ -434,32 +763,6 @@
     canvasHeight = canvasWidth / 2;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
-  }
-
-  function setCookie(name, value, days = 7) {
-    const date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    const expires = "expires=" + date.toUTCString();
-    document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/";
-  }
-
-  function getDayOfYear(date) {
-    const start = new Date(date.getFullYear(), 0, 0);
-    const diff = date - start + (start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000;
-    const oneDay = 1000 * 60 * 60 * 24;
-    return diff / oneDay;
-  }
-
-  function getCookie(name) {
-    const decoded = decodeURIComponent(document.cookie);
-    const parts = decoded.split(';');
-    for (let i = 0; i < parts.length; i++) {
-      let c = parts[i].trim();
-      if (c.indexOf(name + "=") === 0) {
-        return c.substring(name.length + 1, c.length);
-      }
-    }
-    return "";
   }
 
   function loadImages(callback) {
@@ -516,103 +819,106 @@
     moonImage.src = MOONIMAGESRC;
   }
 
-  function loadTLEFromCookie() {
-    const cookieVal = getCookie(TLE_COOKIE_NAME);
-    if (!cookieVal) return null;
+  function whenHass() {
+    return hass ? Promise.resolve(hass) : new Promise(resolve => hassWaiters.push(resolve));
+  }
+
+  // Fetch the ground track around now. It is refreshed every few minutes;
+  // while a fetch fails, the last track keeps the map moving.
+  async function loadTrack() {
+    clearTimeout(trackTimer);
+    let delay = TRACK_REFRESH_MS;
     try {
-      const obj = JSON.parse(cookieVal);
-      if (!obj.timestamp || !obj.tle1 || !obj.tle2) return null;
-      const ageMs = Date.now() - obj.timestamp;
-      if (ageMs < 0 || ageMs > TLE_CACHE_DURATION_MS) return null;
-      return obj;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function saveTLEToCookie(tle1, tle2) {
-    const obj = { tle1, tle2, timestamp: Date.now() };
-    setCookie(TLE_COOKIE_NAME, JSON.stringify(obj), 7);
-  }
-
-  async function fetchISSTLEIfNeeded() {
-    waitmsg.style.display = 'block';
-    const cookieObj = loadTLEFromCookie();
-    if (cookieObj) {
-      issTLELine1 = cookieObj.tle1;
-      issTLELine2 = cookieObj.tle2;
-      lastTleUpdateTime = cookieObj.timestamp;
-      fallbackTleUsed = false;
-      console.log("Loaded TLE from cookie");
+      track = await hass.callWS({ type: 'iss_track/track' });
+      if (!unitsChosen) {
+        useMetric = track.units === 'metric';
+        unitsToggle.classList.toggle('metric', useMetric);
+        unitsChosen = true;
+      }
       waitmsg.style.display = 'none';
-      return true;
-    }
-    try {
-      const response = await fetch(TLE_URL);
-      if (response.status === 403) {
-        console.warn("Access to TLE URL forbidden, using dummy data");
-        fallbackTleUsed = true;
-        issTLELine1 = DUMMY_TLE_LINE1;
-        issTLELine2 = DUMMY_TLE_LINE2;
-        lastTleUpdateTime = Date.now();
-        waitmsg.style.display = 'none';
-        return true;
-      }
-      if (!response.ok) throw new Error("status: " + response.status);
-      const data = await response.text();
-      const lines = data.split('\n').map(l => l.trim()).filter(l => l);
-      if (lines.length < 2 || !lines[0].startsWith('1 25544') || !lines[1].startsWith('2 25544')) {
-        throw new Error("ISS TLE not found");
-      }
-      issTLELine1 = lines[0];
-      issTLELine2 = lines[1];
-      fallbackTleUsed = false;
-      lastTleUpdateTime = Date.now();
-      saveTLEToCookie(issTLELine1, issTLELine2);
-      console.log("Fetched TLE data successfully");
     } catch (err) {
-      console.error("TLE fetch error:", err);
-      fallbackTleUsed = true;
-      issTLELine1 = DUMMY_TLE_LINE1;
-      issTLELine2 = DUMMY_TLE_LINE2;
-      lastTleUpdateTime = Date.now();
-    } finally {
-      waitmsg.style.display = 'none';
+      console.error("ISS Track data not available:", err);
+      delay = TRACK_RETRY_MS;
+      if (!track) {
+        waitmsg.textContent = 'Waiting for ISS Track…';
+        waitmsg.style.display = 'block';
+      }
     }
-    return true;
+    trackTimer = setTimeout(loadTrack, delay);
+  }
+
+  function wrapLon(lon) {
+    return ((lon + 540) % 360) - 180;
+  }
+
+  function lonBetween(a, b, f) {
+    return wrapLon(a + (((b - a + 540) % 360) - 180) * f);
+  }
+
+  // The station's state at a moment, read off the track by interpolation.
+  function stateAt(ms) {
+    if (!track) return null;
+    const pos = (ms - track.start) / (track.step * 1000);
+    const i = Math.floor(pos);
+    if (i < 0 || i >= track.points.length - 1) return null;
+    const f = pos - i;
+    const a = track.points[i], b = track.points[i + 1];
+    return {
+      lat: a[0] + (b[0] - a[0]) * f,
+      lon: lonBetween(a[1], b[1], f),
+      altKm: a[2] + (b[2] - a[2]) * f,
+      speedKps: a[3] + (b[3] - a[3]) * f
+    };
   }
 
   function getCurrentISSPosition() {
-    if (!issTLELine1 || !issTLELine2) {
-      console.warn("TLE data not available, cannot compute ISS position");
-      return null;
-    }
-    const satrec = satellite.twoline2satrec(issTLELine1, issTLELine2);
-    const now = new Date();
-    const pv = satellite.propagate(satrec, now);
-    if (!pv.position || !pv.velocity) {
-      console.warn("Failed to propagate ISS position");
-      return null;
-    }
-    const gmst = satellite.gstime(now);
-    const gd = satellite.eciToGeodetic(pv.position, gmst);
-    const lat = satellite.degreesLat(gd.latitude);
-    const lon = satellite.degreesLong(gd.longitude);
-    const altKm = gd.height;
-    const vx = pv.velocity.x, vy = pv.velocity.y, vz = pv.velocity.z;
-    const speedKps = Math.sqrt(vx * vx + vy * vy + vz * vz);
-    return { lat, lon, altKm, speedKps, satrec };
+    const state = stateAt(Date.now());
+    if (!state) console.warn("ISS position not available yet");
+    return state;
   }
 
-  function getApproxSunPosition(date = new Date()) {
-    const timeUTC = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-    let sunLonDeg = (timeUTC - 12) * -15;
-    while (sunLonDeg > 180) sunLonDeg -= 360;
-    while (sunLonDeg < -180) sunLonDeg += 360;
-    const dayOfYear = getDayOfYear(date);
-    const axialTilt = 23.44;
-    const sunLatDeg = -axialTilt * Math.cos((2 * Math.PI / 365) * (dayOfYear + 10));
-    return { lat: sunLatDeg, lon: sunLonDeg };
+  // Where the Sun is overhead, from the samples sent with the track.
+  function sunAt(ms) {
+    const sun = track && track.sun;
+    if (!sun || sun.length < 2) return null;
+    let i = 0;
+    while (i < sun.length - 2 && sun[i + 1][0] <= ms) i++;
+    const a = sun[i], b = sun[i + 1];
+    const f = (ms - a[0]) / (b[0] - a[0]);
+    return { lat: a[1] + (b[1] - a[1]) * f, lon: lonBetween(a[2], b[2], f) };
+  }
+
+  function orbitPoints(fromMs, toMs, stepMs = 60000) {
+    const points = [];
+    for (let t = fromMs; t <= toMs; t += stepMs) {
+      const state = stateAt(t);
+      if (state) points.push({ lat: state.lat, lon: state.lon });
+    }
+    return points;
+  }
+
+  // The observer's ring (everywhere the station is at least 10 degrees up
+  // for them) and the ground track of their next matching pass.
+  function drawOverlay(altKm) {
+    const who = overlay.observer;
+    if (who && who.latitude !== null && who.longitude !== null) {
+      const ratio = 6371 / (6371 + altKm);
+      const floor = 10 * PI / 180;
+      const reach = Math.acos(ratio * Math.cos(floor)) - floor;
+      drawViewCircle(who.latitude, who.longitude, reach, 'rgba(133, 183, 235, 0.95)');
+      const { x, y } = latLonToXY(who.latitude, who.longitude);
+      ctx.save();
+      ctx.fillStyle = 'rgb(133, 183, 235)';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, TWO_PI);
+      ctx.fill();
+      ctx.restore();
+    }
+    const pass = overlay.pass;
+    if (pass) {
+      const points = orbitPoints(pass.start, pass.end, 10000);
+      if (points.length > 1) drawOrbitSegments(splitDateLine(points), 'rgb(93, 202, 165)', 5);
+    }
   }
 
   function getMoonPosition(date = new Date()) {
@@ -639,7 +945,8 @@
       return;
     }
     ctx.drawImage(dayImage, 0, 0, canvasWidth, canvasHeight);
-    const sunPos = getApproxSunPosition();
+    const sunPos = sunAt(Date.now());
+    if (!sunPos) return;
     const sunLonDeg = sunPos.lon;
     const sunLatDeg = sunPos.lat;
     const sunLonRad = sunLonDeg * PI / 180;
@@ -741,32 +1048,6 @@
     return { x, y };
   }
 
-  function computeOrbitPoints(satrec, startTime, endTime, stepMin) {
-    const now = Date.now();
-    if (orbitCache.lastUpdate && now - orbitCache.lastUpdate < ORBIT_CACHE_DURATION) {
-      return { pastPts: orbitCache.pastPts, futurePts: orbitCache.futurePts };
-    }
-    const ptsPast = [];
-    const ptsFuture = [];
-    let cur = new Date(startTime);
-    while (cur <= endTime) {
-      const pv = satellite.propagate(satrec, cur);
-      if (pv.position) {
-        const gmst = satellite.gstime(cur);
-        const gd = satellite.eciToGeodetic(pv.position, gmst);
-        const point = {
-          lat: satellite.degreesLat(gd.latitude),
-          lon: satellite.degreesLong(gd.longitude)
-        };
-        if (cur <= now) ptsPast.push(point);
-        else ptsFuture.push(point);
-      }
-      cur = new Date(cur.getTime() + stepMin * 60 * 1000);
-    }
-    orbitCache = { pastPts: ptsPast, futurePts: ptsFuture, lastUpdate: now };
-    return { pastPts: ptsPast, futurePts: ptsFuture };
-  }
-
   function splitDateLine(points) {
     if (!points.length) return [];
     const segs = [];
@@ -798,10 +1079,10 @@
     return segs;
   }
 
-  function drawOrbitSegments(segments, color) {
+  function drawOrbitSegments(segments, color, width = 2) {
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = width;
     segments.forEach(sg => {
       if (sg.length) {
         ctx.beginPath();
@@ -1001,16 +1282,16 @@
       console.error("No ISS position data available for full render");
       return;
     }
-    const { lat, lon, altKm, speedKps, satrec } = data;
+    const { lat, lon, altKm, speedKps } = data;
 
-    const periodMin = (2 * PI) / satrec.no;
-    const now = new Date();
-    const pastStart = new Date(now - periodMin * 60 * 1000);
-    const futureEnd = new Date(now.getTime() + periodMin * 60 * 1000);
-    const { pastPts, futurePts } = computeOrbitPoints(satrec, pastStart, futureEnd, 1);
+    const periodMs = track.period_minutes * 60 * 1000;
+    const nowMs = Date.now();
+    const pastPts = orbitPoints(nowMs - periodMs, nowMs);
+    const futurePts = orbitPoints(nowMs, nowMs + periodMs);
 
     drawOrbitSegments(splitDateLine(pastPts), 'white');
     drawOrbitSegments(splitDateLine(futurePts), 'yellow');
+    drawOverlay(altKm);
     drawISS(lat, lon);
 
     const viewRadiusKm = 2000;
@@ -1018,25 +1299,10 @@
     const angularRadiusRad = Math.asin(viewRadiusKm / (earthRadiusKm + altKm));
     drawViewCircle(lat, lon, angularRadiusRad);
 
-    const oneAndHalfHoursMs = 1.5 * 60 * 60 * 1000;
-    const futureTime = new Date(now.getTime() + oneAndHalfHoursMs);
-    const pastTime = new Date(now.getTime() - oneAndHalfHoursMs);
-    const futurePos = satellite.propagate(satrec, futureTime);
-    const pastPos = satellite.propagate(satrec, pastTime);
-    if (!futurePos.position || !pastPos.position) {
-      console.error("Failed to propagate ISS position for +1.5h or -1.5h.");
-      return;
-    }
-    const futureGmst = satellite.gstime(futureTime);
-    const pastGmst = satellite.gstime(pastTime);
-    const futureGd = satellite.eciToGeodetic(futurePos.position, futureGmst);
-    const pastGd = satellite.eciToGeodetic(pastPos.position, pastGmst);
-    const futureLat = satellite.degreesLat(futureGd.latitude);
-    const futureLon = satellite.degreesLong(futureGd.longitude);
-    const pastLat = satellite.degreesLat(pastGd.latitude);
-    const pastLon = satellite.degreesLong(pastGd.longitude);
-    const futureXY = latLonToXY(futureLat, futureLon);
-    const pastXY = latLonToXY(pastLat, pastLon);
+    const pastEdge = pastPts.length ? pastPts[0] : { lat, lon };
+    const futureEdge = futurePts.length ? futurePts[futurePts.length - 1] : { lat, lon };
+    const futureXY = latLonToXY(futureEdge.lat, futureEdge.lon);
+    const pastXY = latLonToXY(pastEdge.lat, pastEdge.lon);
     const pastSegments = splitDateLine(pastPts);
     const futureSegments = splitDateLine(futurePts);
     let pastStartXY = pastXY, futureEndXY = futureXY;
@@ -1123,7 +1389,7 @@
       drawArrow(futureEndXY.x, futureEndXY.y, '+1.5h', 'yellow', true);
     }
 
-    if (fallbackTleUsed) {
+    if (track.tle && track.tle.stale) {
       ctx.save();
       ctx.translate(canvasWidth / 2, canvasHeight / 2);
       ctx.rotate(-PI / 4);
@@ -1170,11 +1436,12 @@
   }
 
   function updateTLEInfo() {
-    if (!lastTleUpdateTime) {
+    const tle = track && track.tle;
+    if (!tle || !tle.fetched_at) {
       tleInfo.textContent = "";
       return;
     }
-    const lastUpdate = new Date(lastTleUpdateTime).toLocaleString('en-US', {
+    const format = {
       month: '2-digit',
       day: '2-digit',
       year: 'numeric',
@@ -1182,17 +1449,9 @@
       minute: '2-digit',
       second: '2-digit',
       hour12: true
-    });
-    const nextUpdateTime = new Date(lastTleUpdateTime + TLE_CACHE_DURATION_MS);
-    const nextUpdate = nextUpdateTime.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+    };
+    const lastUpdate = new Date(tle.fetched_at).toLocaleString('en-US', format);
+    const nextUpdate = new Date(tle.next_refresh).toLocaleString('en-US', format);
     tleInfo.textContent = `TLE updated ${lastUpdate} - Next update: ${nextUpdate} (times local)`;
   }
 
@@ -1212,6 +1471,7 @@
 
   function toggleUnits() {
     useMetric = !useMetric;
+    unitsChosen = true;
     unitsToggle.classList.toggle('metric');
     drawEverything();
   }
@@ -1236,17 +1496,18 @@
       setupOtherEvents();
       waitmsg.style.display = 'block';
       await new Promise(res => loadImages(res));
-      const tleLoaded = await fetchISSTLEIfNeeded();
-      if (tleLoaded) {
-        initialRender();
-        isInitialized = true;
-        setTimeout(() => {
-          drawEverything();
-          startLoop();
-        }, 100);
-      } else {
-        console.error("Failed to load TLE data, cannot proceed with rendering");
-      }
+      // Opened on its own, outside the sidebar panel, there is no connection.
+      const lonely = setTimeout(() => {
+        if (!hass) waitmsg.textContent = 'Open ISS Track from the Home Assistant sidebar.';
+      }, 4000);
+      await whenHass();
+      clearTimeout(lonely);
+      await loadTrack();
+      while (!track) await new Promise(res => setTimeout(res, 500));
+      initialRender();
+      isInitialized = true;
+      drawEverything();
+      startLoop();
     } catch (err) {
       console.error("Init error:", err);
     }
@@ -1267,6 +1528,391 @@
     updateCanvasSize();
     drawEverything();
   });
+</script>
+<script type="module">
+  // The visible passes drawer and the pass settings sheet. Labels, pills and
+  // the sky dome come from the shared module the dashboard card also uses.
+  const query = new URLSearchParams(window.location.search);
+  const S = await import(`./iss-track-shared.js?v=${query.get('v') || ''}`);
+
+  const sharedStyle = document.createElement('style');
+  sharedStyle.textContent = S.SHARED_CSS;
+  document.head.append(sharedStyle);
+
+  const $ = (id) => document.getElementById(id);
+  const remember = {
+    get(key, fallback) {
+      try { return window.localStorage.getItem(key) ?? fallback; } catch (err) { return fallback; }
+    },
+    set(key, value) {
+      try { window.localStorage.setItem(key, value); } catch (err) { /* private mode */ }
+    },
+  };
+
+  const PASSES_REFRESH_MS = 5 * 60 * 1000;
+  const PASSES_RETRY_MS = 15 * 1000;
+  const REASON = {
+    quality: (p) => `${S.QUALITY[p.quality].label} is off`,
+    brightness: () => 'Too faint',
+    period: (p) => (p.period === 'morning' ? 'Morning is off' : 'Evening is off'),
+  };
+
+  let choice = remember.get('iss_track_observer', 'home') === 'device' ? 'device' : 'home';
+  let open = remember.get('iss_track_passes_open', '1') === '1';
+  let data = null;
+  let failure = null;
+  let loadSeq = 0;
+  let retryTimer = null;
+  let signature = '';
+  let settings = null;
+  let pending = {};
+  let saveTimer = null;
+
+  const hass = () => window.issTrackGetHass();
+
+  function stateOf(now) {
+    if (!data) return { kind: failure ? 'error' : 'loading' };
+    if (!data.observer.available) return { kind: 'unavailable' };
+    const next = S.nextMatching(data.passes, now);
+    if (!next) return { kind: 'none' };
+    return { kind: S.isLive(next, now) ? 'live' : 'next', pass: next };
+  }
+
+  // Only the newest request is applied, so a slow answer for one location
+  // can never land under the other location's button.
+  async function load() {
+    if (!hass()) return;
+    const seq = ++loadSeq;
+    window.clearTimeout(retryTimer);
+    let result = null;
+    let problem = null;
+    try {
+      result = await S.fetchPasses(hass(), choice);
+    } catch (err) {
+      problem = (err && err.message) || 'ISS Track is not ready';
+    }
+    if (seq !== loadSeq) return;
+    if (problem) {
+      failure = problem;
+      retryTimer = window.setTimeout(load, PASSES_RETRY_MS);
+    } else {
+      data = result;
+      failure = null;
+    }
+    render();
+  }
+
+  function statusPill(p) {
+    if (!p.matches) {
+      return S.pill('dim', REASON[p.reason](p), 'LEFT OUT: this pass is outside your pass settings.');
+    }
+    if (!p.alert) {
+      return S.pill('dim', 'Skipped, too cloudy', 'SKIPPED: the forecast is cloudier than your sky setting allows.');
+    }
+    return S.pill('on', 'Alert on', 'ALERT ON: this pass matches your settings, so alerts and the entities include it.');
+  }
+
+  function renderHead(state, now) {
+    $('passes').classList.toggle('closed', !open);
+    $('ps-toggle').setAttribute('aria-expanded', String(open));
+    $('ps-home').classList.toggle('on', choice === 'home');
+    $('ps-device').classList.toggle('on', choice === 'device');
+    let summary = '';
+    if (state.kind === 'next') {
+      const when = S.formatWhen(state.pass.start, hass(), now);
+      summary = `Next: ${when.day} at ${when.time}, ${S.QUALITY[state.pass.quality].label}`;
+    } else if (state.kind === 'live') {
+      summary = 'A pass is visible now';
+    } else if (state.kind === 'none') {
+      summary = 'No matching passes for 10 days';
+    }
+    $('ps-summary').textContent = open ? '' : summary;
+  }
+
+  function renderNote() {
+    let note = '';
+    if (data && data.observer.available) {
+      const who = data.observer;
+      if (who.source === 'home') note = 'Using the home location from Home Assistant settings';
+      else if (who.source === 'browser') note = "Using this browser's location, rounded to about a kilometre";
+      else note = `Using ${who.name}'s location from Home Assistant`;
+    }
+    $('ps-note').textContent = note;
+  }
+
+  function renderHero(state, now) {
+    const hero = $('ps-hero');
+    hero.className = state.kind === 'live' ? 'live' : (state.kind === 'next' ? '' : 'plain');
+    if (state.kind === 'loading') {
+      hero.innerHTML = '<p class="ps-sub" style="margin:0">Loading passes…</p>';
+    } else if (state.kind === 'error') {
+      hero.innerHTML = `<div><p class="ps-big">Passes aren't available</p><p class="ps-sub" style="margin:0">${S.escapeHtml(failure)}</p></div>`;
+    } else if (state.kind === 'unavailable') {
+      hero.innerHTML = `<div><p class="ps-big">No location for this device</p><p class="ps-sub" style="margin:0">${S.escapeHtml(S.unavailableText(data.observer))}</p></div>`;
+    } else if (state.kind === 'none') {
+      const other = S.bestOther(data.passes, now);
+      let hint = 'There are no visible passes at all in that time.';
+      if (other) {
+        const when = S.formatWhen(other.start, hass(), now);
+        hint = `The best one coming is ${S.QUALITY[other.quality].label}, ${Math.round(other.peak_elevation)}°, ${when.day} at ${when.time}.`;
+      }
+      hero.innerHTML = `<div><p class="ps-big">No matching passes for 10 days</p><p class="ps-sub">${S.escapeHtml(hint)}</p>`
+        + '<button id="ps-adjust" style="font-size:0.85rem;padding:7px 12px" title="PASS SETTINGS: change which passes count.">Adjust pass settings</button></div>';
+      $('ps-adjust').addEventListener('click', openSettings);
+    } else if (state.kind === 'live') {
+      const p = state.pass;
+      hero.innerHTML = '<div><p class="ps-label">Visible now</p><p class="ps-big" id="ps-big"></p>'
+        + '<p class="ps-sub" id="ps-sub"></p><div class="ps-bar"><div id="ps-bar" style="width:0%"></div></div>'
+        + `<p class="ps-sub" style="margin:0"><b id="ps-left" style="color:var(--iss-text)"></b> · peaks at ${Math.round(p.peak_elevation)}°, ${S.escapeHtml(S.describePass(p).split(', ')[1])}</p></div>`
+        + '<div id="ps-dome"></div>';
+      updateLive(p, now);
+    } else {
+      const p = state.pass;
+      const when = S.formatWhen(p.start, hass(), now);
+      hero.innerHTML = '<div><p class="ps-label">Next pass that matches</p>'
+        + `<p class="ps-big" id="ps-big">${S.escapeHtml(S.formatCountdown(Date.parse(p.start) - now))}</p>`
+        + `<p class="ps-sub">${S.escapeHtml(`${when.day} at ${when.time}, visible for ${S.formatDuration(p.duration_seconds)}. ${S.describePass(p)}.`)}</p>`
+        + `<div class="ps-pills">${S.qualityPill(p)}${S.magnitudePill(p)}${S.skyPill(p)}</div></div>`
+        + `<div>${S.domeSvg(p)}</div>`;
+    }
+  }
+
+  function updateLive(p, now) {
+    const look = S.liveLook(p, now);
+    if (!look || !$('ps-big')) return;
+    $('ps-big').textContent = `Look ${look.direction}`;
+    $('ps-sub').textContent = `${Math.round(look.elevation)}° above the horizon`;
+    $('ps-bar').style.width = `${Math.round(look.progress * 100)}%`;
+    $('ps-left').textContent = `${S.formatDuration(look.secondsLeft)} left`;
+    $('ps-dome').innerHTML = S.domeSvg(p, look.progress);
+  }
+
+  function renderList(now) {
+    const list = $('ps-list');
+    const count = $('ps-count');
+    if (!data || !data.observer.available) {
+      list.innerHTML = '';
+      count.textContent = '';
+      return;
+    }
+    const rows = data.passes.filter((p) => Date.parse(p.end) >= now);
+    const matching = rows.filter((p) => p.matches).length;
+    count.textContent = rows.length
+      ? `${matching} of ${rows.length} visible passes in the next 10 days match your settings`
+      : 'No visible passes in the next 10 days';
+    list.innerHTML = rows.map((p) => {
+      const when = S.formatWhen(p.start, hass(), now);
+      return `<div class="ps-row${p.matches ? '' : ' off'}">`
+        + `<span class="ps-when" title="${S.escapeHtml(S.describePass(p))}">${S.escapeHtml(`${when.day} · ${when.time}`)}</span>`
+        + `<span>${S.qualityPill(p, false)}</span>`
+        + `<span class="ps-num" title="HIGHEST POINT: degrees above the horizon while visible.">${Math.round(p.peak_elevation)}°</span>`
+        + `<span class="ps-num ps-mag" title="BRIGHTNESS: estimated magnitude. Lower is brighter.">${S.formatMagnitude(p.magnitude)}</span>`
+        + `<span class="ps-sky">${S.skyPill(p)}</span>`
+        + `<span class="ps-dir">${S.escapeHtml(`${p.start_direction} to ${p.end_direction}`)}</span>`
+        + `<span class="ps-status">${statusPill(p)}</span></div>`;
+    }).join('');
+  }
+
+  function pushOverlay(state) {
+    const who = data && data.observer.available ? data.observer : null;
+    const p = state.pass || null;
+    window.issTrackSetOverlay({
+      observer: who ? { latitude: who.latitude, longitude: who.longitude } : null,
+      pass: p ? { start: Date.parse(p.start), end: Date.parse(p.end) } : null,
+    });
+  }
+
+  function render() {
+    const now = Date.now();
+    const state = stateOf(now);
+    signature = `${state.kind}|${state.pass ? state.pass.start : ''}`;
+    $('passes').hidden = false;
+    renderHead(state, now);
+    renderNote();
+    renderHero(state, now);
+    renderList(now);
+    pushOverlay(state);
+  }
+
+  function tick() {
+    if (!data) return;
+    const now = Date.now();
+    const state = stateOf(now);
+    if (`${state.kind}|${state.pass ? state.pass.start : ''}` !== signature) {
+      render();
+    } else if (state.kind === 'next' && $('ps-big')) {
+      $('ps-big').textContent = S.formatCountdown(Date.parse(state.pass.start) - now);
+    } else if (state.kind === 'live') {
+      updateLive(state.pass, now);
+    }
+  }
+
+  // ----- pass settings sheet -------------------------------------------
+
+  function sheetHtml() {
+    const s = settings;
+    const lock = s.can_edit ? '' : ' disabled';
+    const qualities = S.QUALITY_ORDER.map((key) => {
+      const q = S.QUALITY[key];
+      return `<label class="ps-q"><input type="checkbox" data-quality="${key}"${s.qualities.includes(key) ? ' checked' : ''}${lock}/>`
+        + `${S.pill(key, q.label)}<span>${q.range}</span><span>${q.hint}</span></label>`;
+    }).join('');
+    const weather = ['<option value="">No weather entity</option>'].concat(
+      s.weather_entities.map((w) => `<option value="${S.escapeHtml(w.entity_id)}"${w.entity_id === s.weather_entity ? ' selected' : ''}>${S.escapeHtml(w.name)}</option>`),
+    ).join('');
+    const sky = S.SKY_LIMITS.map(([key, label]) => (
+      `<button data-sky="${key}" class="${s.sky_limit === key ? 'on' : ''}"${s.can_edit && s.weather_entity ? '' : ' disabled'}>${label}</button>`
+    )).join('');
+    const slider = Math.round((S.MAGNITUDE_FAINTEST - s.faintest_magnitude) / S.MAGNITUDE_STEP);
+    const steps = Math.round((S.MAGNITUDE_FAINTEST - S.MAGNITUDE_BRIGHTEST) / S.MAGNITUDE_STEP);
+    return '<div class="ps-sheet-head"><h2 id="ps-sheet-title">Pass settings</h2>'
+      + `${S.pill('neutral', 'Shared by the panel and the entities', 'ONE SETTING: the map panel, dashboard card, calendar and entities all use these.')}`
+      + '<button id="ps-close" class="ps-icon" aria-label="Close" title="CLOSE: changes are saved as you make them.">×</button></div>'
+      + '<p class="ps-h" style="margin-top:0">Pass quality to include</p>' + qualities
+      + '<p class="ps-h">Minimum brightness</p>'
+      + `<div class="ps-slider"><span>Dimmer</span><input type="range" id="ps-mag" min="0" max="${steps}" step="1" value="${slider}" aria-label="Minimum brightness" title="MINIMUM BRIGHTNESS: leave out passes fainter than this."${lock}/><span>Brighter</span></div>`
+      + '<p style="font-size:0.85rem;margin:8px 0 0"><b id="ps-mag-out"></b> <span id="ps-mag-hint" style="color:var(--iss-text2)"></span></p>'
+      + '<p class="ps-note" style="margin:8px 0 0">Magnitude runs backwards: a lower number is brighter. Brightness is an estimate.</p>'
+      + '<div class="ps-two"><div><p class="ps-h">Sky forecast</p>'
+      + `<select id="ps-weather" aria-label="Weather entity" title="WEATHER ENTITY: where the sky forecast for each pass comes from."${lock}>${weather}</select>`
+      + '<p class="ps-note" style="margin:0 0 6px">Alert me when the sky is</p>'
+      + `<div class="ps-seg" id="ps-sky" title="SKY LIMIT: alerts skip a pass when the forecast is cloudier than this. A pass with no forecast is never skipped.">${sky}</div></div>`
+      + '<div><p class="ps-h">Time of day</p>'
+      + `<label class="ps-check"><input type="checkbox" id="ps-evening"${s.evening ? ' checked' : ''}${lock}/>Evening passes, after sunset</label>`
+      + `<label class="ps-check"><input type="checkbox" id="ps-morning"${s.morning ? ' checked' : ''}${lock}/>Morning passes, before sunrise</label>`
+      + '<p class="ps-note" style="margin:6px 0 0">About half of all visible passes happen before dawn.</p></div></div>'
+      + `<p id="ps-status">${s.can_edit ? 'Changes are saved as you make them.' : 'Only an administrator can change pass settings.'}</p>`;
+  }
+
+  function showMagnitude() {
+    const limit = S.MAGNITUDE_FAINTEST - Number($('ps-mag').value) * S.MAGNITUDE_STEP;
+    $('ps-mag-out').textContent = `Magnitude ${S.formatMagnitude(limit)} or brighter`;
+    $('ps-mag-hint').textContent = `· ${S.magnitudeHint(limit)}`;
+    return limit;
+  }
+
+  function setStatus(text, bad = false) {
+    const status = $('ps-status');
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle('bad', bad);
+  }
+
+  function queueSave(patch) {
+    Object.assign(pending, patch);
+    setStatus('Saving…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 350);
+  }
+
+  async function save() {
+    const patch = pending;
+    pending = {};
+    try {
+      settings = await hass().callWS({ type: 'iss_track/settings/set', ...patch });
+      setStatus('Saved');
+      // The sky buttons only work once a weather entity is chosen.
+      for (const button of $('ps-sky').querySelectorAll('button')) {
+        button.disabled = !settings.weather_entity;
+        button.classList.toggle('on', button.dataset.sky === settings.sky_limit);
+      }
+      await load();
+    } catch (err) {
+      settings = await hass().callWS({ type: 'iss_track/settings/get' });
+      buildSheet();
+      setStatus(`Couldn't save: ${(err && err.message) || 'unknown error'}`, true);
+    }
+  }
+
+  function buildSheet() {
+    $('ps-sheet').innerHTML = sheetHtml();
+    showMagnitude();
+    $('ps-close').addEventListener('click', closeSettings);
+    for (const box of $('ps-sheet').querySelectorAll('input[data-quality]')) {
+      box.addEventListener('change', () => {
+        const chosen = [...$('ps-sheet').querySelectorAll('input[data-quality]:checked')].map((b) => b.dataset.quality);
+        if (!chosen.length) {
+          box.checked = true;
+          setStatus('Keep at least one pass quality.', true);
+          return;
+        }
+        queueSave({ qualities: chosen });
+      });
+    }
+    $('ps-mag').addEventListener('input', showMagnitude);
+    $('ps-mag').addEventListener('change', () => queueSave({ faintest_magnitude: showMagnitude() }));
+    $('ps-weather').addEventListener('change', (event) => queueSave({ weather_entity: event.target.value || null }));
+    $('ps-sky').addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button || button.disabled) return;
+      for (const other of $('ps-sky').querySelectorAll('button')) other.classList.toggle('on', other === button);
+      queueSave({ sky_limit: button.dataset.sky });
+    });
+    for (const id of ['ps-evening', 'ps-morning']) {
+      $(id).addEventListener('change', (event) => {
+        if (!$('ps-evening').checked && !$('ps-morning').checked) {
+          event.target.checked = true;
+          setStatus('Keep evening passes, morning passes, or both.', true);
+          return;
+        }
+        queueSave({ evening: $('ps-evening').checked, morning: $('ps-morning').checked });
+      });
+    }
+  }
+
+  async function openSettings() {
+    if (!hass()) return;
+    try {
+      settings = await hass().callWS({ type: 'iss_track/settings/get' });
+    } catch (err) {
+      return;
+    }
+    buildSheet();
+    $('settingsModal').style.display = 'flex';
+    $('ps-close').focus();
+  }
+
+  function closeSettings() {
+    $('settingsModal').style.display = 'none';
+    $('ps-gear').focus();
+  }
+
+  // ----- wiring ---------------------------------------------------------
+
+  $('ps-toggle').addEventListener('click', () => {
+    open = !open;
+    remember.set('iss_track_passes_open', open ? '1' : '0');
+    render();
+  });
+  for (const [id, value] of [['ps-home', 'home'], ['ps-device', 'device']]) {
+    $(id).addEventListener('click', () => {
+      if (choice === value) return;
+      choice = value;
+      remember.set('iss_track_observer', value);
+      data = null;
+      render();
+      load();
+    });
+  }
+  $('ps-gear').addEventListener('click', openSettings);
+  $('settingsModal').addEventListener('click', (event) => {
+    if (event.target === $('settingsModal')) closeSettings();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && $('settingsModal').style.display === 'flex') closeSettings();
+  });
+
+  async function start() {
+    render();
+    await load();
+    if (query.has('settings')) openSettings();
+    window.setInterval(tick, 1000);
+    window.setInterval(load, PASSES_REFRESH_MS);
+    // The integration says when passes, sky or settings change.
+    hass().connection.subscribeMessage(() => load(), { type: 'iss_track/subscribe' }).catch(() => {});
+  }
+  if (hass()) start();
+  else window.addEventListener('iss-track-hass', start, { once: true });
 </script>
 </body>
 </html>
