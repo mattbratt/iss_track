@@ -124,6 +124,38 @@ def test_southern_morning_passes_match_published_predictions(orbit):
     assert second.magnitude == pytest.approx(-0.9, abs=0.15)
 
 
+def test_an_overflight_in_shadow_is_not_a_pass(orbit):
+    """Florida, about 9 PM local on 4 Nov: the station crosses the sky 41
+    degrees up, but hours after sunset it is in Earth's shadow throughout."""
+    observer = engine.Observer(28.6, -80.8, 5.0)
+    start = datetime(2026, 11, 5, 1, 44, tzinfo=timezone.utc)
+    end = start + timedelta(minutes=40)
+    assert engine.find_passes(orbit, observer, start, end) == []
+    (unseen,) = engine.find_overflights(orbit, observer, start, end)
+    assert unseen.reason == engine.UNSEEN_SHADOW
+    assert _seconds(unseen.rise, _at(5, "02:01:25")) <= 5
+    assert _seconds(unseen.peak, _at(5, "02:04:35")) <= 5
+    assert _seconds(unseen.set, _at(5, "02:07:45")) <= 5
+    assert unseen.peak_elevation == pytest.approx(41.2, abs=0.3)
+    data = unseen.as_dict()
+    assert data["peak_direction"] == "NW" and data["reason"] == "shadow"
+    assert data["path"][0][0] == 0 and data["path"][-1][0] == data["duration_seconds"]
+
+
+def test_overflights_and_passes_never_overlap(orbit, found):
+    """Every time the station is up is either a visible pass or an unseen
+    overflight, never both, and daytime ones say so."""
+    unseen = engine.find_overflights(orbit, OBSERVER, WINDOW_START, WINDOW_END)
+    reasons = {item.reason for item in unseen}
+    assert reasons == {engine.UNSEEN_SHADOW, engine.UNSEEN_DAYLIGHT}
+    for item in unseen:
+        assert item.peak_elevation >= engine.MIN_ELEVATION
+        assert not any(p.rise <= item.set and item.rise <= p.set for p in found)
+    # The pass that bright twilight trims is still a pass, so it is not listed.
+    assert not any(_seconds(item.peak, _at(13, "22:12:17")) < 120 for item in unseen)
+    assert len(unseen) > 3 * len(found)
+
+
 def test_long_strides_never_skip_a_pass(orbit, found, monkeypatch):
     monkeypatch.setattr(
         passes_module, "_coarse_step", lambda elevation: timedelta(seconds=20)

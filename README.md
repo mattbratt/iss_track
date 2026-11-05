@@ -39,6 +39,7 @@ All frontend assets (map images, fonts, the panel and the card) are served direc
 - Use the Metric/Imperial toggle to switch units; the fullscreen button expands the map.
 - Under the map, **Visible passes** lists every pass you can see in the next 10 days. The blue ring on the map is where the station has to be for you to see it, and the next matching pass is drawn in green.
 - Switch between **Home** and **This device** to choose whose sky the passes are for.
+- When the station is about to cross your sky with nothing to see, a note says when and why: it is in Earth's shadow, or your sky is too bright. That stretch of track is drawn dashed and grey on the map.
 - The gear opens **Pass settings**.
 - Click **Visible passes** to fold the list away. The next matching pass stays in view on the bar.
 

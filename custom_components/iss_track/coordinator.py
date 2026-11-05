@@ -64,6 +64,8 @@ from .const import (
     TLE_REFRESH,
     TLE_STALE_AFTER,
     TLE_URL,
+    UNSEEN_LOOKAHEAD,
+    UNSEEN_LOOKBACK,
     WEATHER_RANGE_KM,
 )
 from .engine import (
@@ -74,9 +76,11 @@ from .engine import (
     Observer,
     Orbit,
     OrbitError,
+    Overflight,
     Pass,
     State as IssState,
     classify_sky,
+    find_overflights,
     find_passes,
     ground_distance_km,
     look_now,
@@ -519,6 +523,19 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             while len(self._adhoc) > _ADHOC_LIMIT:
                 self._adhoc.pop(next(iter(self._adhoc)))
         return passes, self._sky_for_passes(observer, passes)
+
+    async def async_unseen(self, observer: Observer) -> list[Overflight]:
+        """Times close to now when the station is up but cannot be seen."""
+        if self.orbit is None:
+            return []
+        now = dt_util.utcnow().replace(microsecond=0)
+        return await self.hass.async_add_executor_job(
+            find_overflights,
+            self.orbit.copy(),
+            observer,
+            now - UNSEEN_LOOKBACK,
+            now + UNSEEN_LOOKAHEAD,
+        )
 
     # ----- pass edges: exact to the second, never polled -------------------
 

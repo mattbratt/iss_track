@@ -133,6 +133,50 @@ export function isLive(pass, nowMs) {
   return Date.parse(pass.start) <= nowMs && nowMs <= Date.parse(pass.end);
 }
 
+/*
+ * An unseen overflight is the station above the horizon with nothing to see.
+ * It earns a note only while it is under way or about to begin.
+ */
+export const UNSEEN_WINDOW_MS = 30 * 60 * 1000;
+
+const UNSEEN_REASON = {
+  shadow: "but in Earth's shadow, so there is nothing to see.",
+  daylight: 'but your sky is too bright to see it.',
+};
+
+export function nextUnseen(unseen, nowMs) {
+  return (unseen || []).find((item) => (
+    Date.parse(item.end) >= nowMs && Date.parse(item.start) - nowMs <= UNSEEN_WINDOW_MS
+  )) || null;
+}
+
+/* A direction means nothing for a point almost straight up. */
+function whereInSky(elevation, direction) {
+  const degrees = Math.round(elevation);
+  return degrees >= 85 ? 'straight up' : `${degrees}° to the ${direction}`;
+}
+
+/* The two halves of the note: where and when, then why it cannot be seen. */
+export function describeUnseen(item, hass, nowMs) {
+  const reason = UNSEEN_REASON[item.reason] || UNSEEN_REASON.shadow;
+  if (Date.parse(item.start) <= nowMs) {
+    const look = liveLook(item, nowMs);
+    const until = formatWhen(item.end, hass, nowMs).time;
+    const where = look ? `, ${whereInSky(look.elevation, look.direction)}` : '';
+    return { lead: `Overhead now until ${until}${where},`, reason };
+  }
+  const at = formatWhen(item.peak, hass, nowMs).time;
+  return {
+    lead: `Overhead at ${at}, ${whereInSky(item.peak_elevation, item.peak_direction)},`,
+    reason,
+  };
+}
+
+export const EYE_OFF_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" '
+  + 'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
+  + '<line x1="4" y1="4" x2="20" y2="20"/></svg>';
+
 /* The best pass that does not match, for the "nothing matches" state. */
 export function bestOther(passes, nowMs) {
   let best = null;

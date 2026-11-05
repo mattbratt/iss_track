@@ -154,6 +154,40 @@ class Criteria:
         return self.reason(candidate) is None
 
 
+UNSEEN_SHADOW = "shadow"
+UNSEEN_DAYLIGHT = "daylight"
+
+
+@dataclass(frozen=True, slots=True)
+class Overflight:
+    """The station above the elevation floor with nothing to see.
+
+    reason is UNSEEN_SHADOW when the station is in Earth's shadow, and
+    UNSEEN_DAYLIGHT when the observer's sky is too bright.
+    """
+
+    rise: datetime
+    peak: datetime
+    set: datetime
+    peak_elevation: float
+    peak_azimuth: float
+    reason: str
+    path: tuple[tuple[int, float, float], ...]
+
+    def as_dict(self) -> dict:
+        """JSON-ready form, shaped like a pass so the same code can follow it."""
+        return {
+            "start": self.rise.isoformat(),
+            "peak": self.peak.isoformat(),
+            "end": self.set.isoformat(),
+            "duration_seconds": int((self.set - self.rise).total_seconds()),
+            "peak_elevation": round(self.peak_elevation, 1),
+            "peak_direction": compass(self.peak_azimuth),
+            "reason": self.reason,
+            "path": [list(point) for point in self.path],
+        }
+
+
 def _elevation(orbit: Orbit, frame: ObserverFrame, when: datetime) -> float:
     position, _velocity, theta = orbit.teme(when)
     return look_angles(frame, rotate_z(position, theta))[1]
@@ -171,10 +205,14 @@ def _coarse_step(elevation: float) -> timedelta:
     return _COARSE
 
 
-def _resolve(
+def _sample(
     orbit: Orbit, frame: ObserverFrame, window_start: datetime, window_end: datetime
-) -> Pass | None:
-    """Sample one coarse window every second and describe its visible stretch."""
+) -> tuple[list, tuple]:
+    """Sample one coarse window every second.
+
+    Each row is (time, azimuth, elevation, range, above the floor, sunlit,
+    sky dark, inertial position, sidereal time).
+    """
     sun = sun_vector(window_start + (window_end - window_start) / 2)
     rows = []
     when = window_start
@@ -186,7 +224,41 @@ def _resolve(
         dark = sun_elevation(frame, sun, theta) <= SUN_DARK_ELEVATION
         rows.append((when, azimuth, elevation, distance, above, lit, dark, position, theta))
         when += _FINE
+    return rows, sun
 
+
+def _path(rows: list) -> tuple[tuple[int, float, float], ...]:
+    """Seconds from the first row, azimuth and elevation, every few seconds."""
+    path = [
+        (offset, round(rows[offset][1], 1), round(rows[offset][2], 1))
+        for offset in range(0, len(rows), PATH_STEP_SECONDS)
+    ]
+    if path[-1][0] != len(rows) - 1:
+        path.append((len(rows) - 1, round(rows[-1][1], 1), round(rows[-1][2], 1)))
+    return tuple(path)
+
+
+def _unseen(rows: list) -> Overflight | None:
+    """Describe a window in which the station is up but cannot be seen."""
+    above_rows = [row for row in rows if row[4]]
+    if not above_rows:
+        return None
+    peak_row = max(above_rows, key=lambda row: row[2])
+    dark_rows = sum(1 for row in above_rows if row[6])
+    return Overflight(
+        rise=above_rows[0][0],
+        peak=peak_row[0],
+        set=above_rows[-1][0],
+        peak_elevation=peak_row[2],
+        peak_azimuth=peak_row[1],
+        # A sky that is dark for most of it means the station itself is unlit.
+        reason=UNSEEN_SHADOW if dark_rows * 2 >= len(above_rows) else UNSEEN_DAYLIGHT,
+        path=_path(above_rows),
+    )
+
+
+def _visible_pass(frame: ObserverFrame, rows: list, sun: tuple) -> Pass | None:
+    """Describe the visible stretch of one sampled window, if it has one."""
     best: tuple[int, int] | None = None
     run_start: int | None = None
     for index, row in enumerate(rows + [None]):
@@ -223,13 +295,6 @@ def _resolve(
     sun_at_start = sun_elevation(frame, sun, rows[first][8])
     period = PERIOD_EVENING if sun_at_start < sun_before else PERIOD_MORNING
 
-    path = [
-        (offset, round(run[offset][1], 1), round(run[offset][2], 1))
-        for offset in range(0, len(run), PATH_STEP_SECONDS)
-    ]
-    if path[-1][0] != len(run) - 1:
-        path.append((len(run) - 1, round(run[-1][1], 1), round(run[-1][2], 1)))
-
     return Pass(
         start=rows[first][0],
         peak=peak_row[0],
@@ -249,8 +314,28 @@ def _resolve(
         period=period,
         starts_in_shadow=first > 0 and rows[first - 1][4] and not rows[first - 1][5],
         ends_in_shadow=stop < len(rows) and rows[stop][4] and not rows[stop][5],
-        path=tuple(path),
+        path=_path(run),
     )
+
+
+def _windows(orbit: Orbit, frame: ObserverFrame, start: datetime, end: datetime):
+    """Yield (window start, window end) for each time the station is above
+    the elevation floor between start and end."""
+    when = start
+    window_start: datetime | None = None
+    while when <= end:
+        elevation = _elevation(orbit, frame, when)
+        if elevation >= MIN_ELEVATION:
+            if window_start is None:
+                window_start = max(start, when - _COARSE)
+            when += _COARSE
+            continue
+        if window_start is not None:
+            yield window_start, when
+            window_start = None
+        when += _coarse_step(elevation)
+    if window_start is not None:
+        yield window_start, when + timedelta(minutes=12)
 
 
 def find_passes(
@@ -262,26 +347,32 @@ def find_passes(
     """
     frame = observer_frame(observer)
     passes: list[Pass] = []
-    when = start
-    window_start: datetime | None = None
-    while when <= end:
-        elevation = _elevation(orbit, frame, when)
-        if elevation >= MIN_ELEVATION:
-            if window_start is None:
-                window_start = max(start, when - _COARSE)
-            when += _COARSE
-            continue
-        if window_start is not None:
-            found = _resolve(orbit, frame, window_start, when)
-            if found is not None:
-                passes.append(found)
-            window_start = None
-        when += _coarse_step(elevation)
-    if window_start is not None:
-        found = _resolve(orbit, frame, window_start, when + timedelta(minutes=12))
+    for window_start, window_end in _windows(orbit, frame, start, end):
+        rows, sun = _sample(orbit, frame, window_start, window_end)
+        found = _visible_pass(frame, rows, sun)
         if found is not None:
             passes.append(found)
     return passes
+
+
+def find_overflights(
+    orbit: Orbit, observer: Observer, start: datetime, end: datetime
+) -> list[Overflight]:
+    """Every time the station is above the floor but has no visible pass.
+
+    These are never passes: they exist so the panel can say why the station
+    crossing your sky is not worth going outside for.
+    """
+    frame = observer_frame(observer)
+    overflights: list[Overflight] = []
+    for window_start, window_end in _windows(orbit, frame, start, end):
+        rows, sun = _sample(orbit, frame, window_start, window_end)
+        if _visible_pass(frame, rows, sun) is not None:
+            continue
+        unseen = _unseen(rows)
+        if unseen is not None:
+            overflights.append(unseen)
+    return overflights
 
 
 def look_now(

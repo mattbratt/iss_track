@@ -2,6 +2,12 @@
 
 All notable changes to ISS Track are listed here, newest first.
 
+## 2.0.1 - 2026-11-04
+
+### Added
+- **A note when the station passes overhead unseen.** The station often crosses your sky with nothing to see: at night it is in Earth's shadow, and by day your sky is too bright. When that is about to happen, or is happening, the panel now says so above the next pass, with the time, how high it gets and the reason. On the map, that stretch of track is drawn dashed and grey instead of green.
+- The note appears only while the station is above your horizon or will be within 30 minutes. An unseen overflight is not a pass, so the entities, the calendar and alerts are unchanged.
+
 ## 2.0.0 - 2026-11-04
 
 ISS Track now tells you when you can see the station, not only where it is. Everything it shows is worked out once, inside Home Assistant, and is available to automations.

@@ -216,6 +216,14 @@ async def ws_passes(
         connection.send_error(msg["id"], "orbit_error", str(err))
         return
     now = dt_util.utcnow()
+    unseen = []
+    if info["available"]:
+        try:
+            unseen = await coordinator.async_unseen(
+                Observer(info["latitude"], info["longitude"], 0.0)
+            )
+        except OrbitError:
+            unseen = []
     connection.send_result(
         msg["id"],
         {
@@ -226,6 +234,9 @@ async def ws_passes(
                 for item in passes
                 if item.end >= now
             ],
+            # Up but not visible, close to now. Never passes: the panel only
+            # uses these to explain why there is nothing to see.
+            "unseen": [item.as_dict() for item in unseen if item.set >= now],
             "settings": coordinator.settings(),
         },
     )

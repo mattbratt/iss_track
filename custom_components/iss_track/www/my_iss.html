@@ -376,6 +376,33 @@
       color: var(--iss-text3);
       margin: 10px 0;
     }
+    #ps-unseen {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+    }
+    #ps-unseen[hidden] {
+      display: none;
+    }
+    #ps-unseen svg {
+      flex: none;
+      color: var(--iss-text2);
+    }
+    #ps-unseen .ps-unseen-text {
+      flex: 1;
+      min-width: 0;
+    }
+    #ps-unseen .ps-unseen-text b {
+      font-weight: 400;
+    }
+    #ps-unseen .ps-unseen-text span {
+      color: var(--iss-text2);
+    }
     #ps-hero {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 190px;
@@ -623,6 +650,7 @@
       </div>
       <div id="ps-body">
         <p id="ps-note" class="ps-note"></p>
+        <div id="ps-unseen" hidden></div>
         <div id="ps-hero" class="plain"></div>
         <p id="ps-count" class="ps-note"></p>
         <div id="ps-list"></div>
@@ -919,6 +947,18 @@
       const points = orbitPoints(pass.start, pass.end, 10000);
       if (points.length > 1) drawOrbitSegments(splitDateLine(points), 'rgb(93, 202, 165)', 5);
     }
+    // Up for this observer but not visible: dashed and grey, never green.
+    const unseen = overlay.unseen;
+    if (unseen) {
+      const points = orbitPoints(unseen.start, unseen.end, 10000);
+      if (points.length > 1) {
+        // A dark bed first, so the dashes read as grey and not as gaps in
+        // the yellow track underneath.
+        const segments = splitDateLine(points);
+        drawOrbitSegments(segments, 'rgb(40, 44, 60)', 5);
+        drawOrbitSegments(segments, 'rgb(190, 194, 204)', 3, [7, 6]);
+      }
+    }
   }
 
   function getMoonPosition(date = new Date()) {
@@ -1079,10 +1119,11 @@
     return segs;
   }
 
-  function drawOrbitSegments(segments, color, width = 2) {
+  function drawOrbitSegments(segments, color, width = 2, dash = []) {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
+    ctx.setLineDash(dash);
     segments.forEach(sg => {
       if (sg.length) {
         ctx.beginPath();
@@ -1640,6 +1681,32 @@
     $('ps-note').textContent = note;
   }
 
+  // Why the station crossing your sky right now, or shortly, is not a pass.
+  function unseenNow(now) {
+    if (!data || !data.observer.available) return null;
+    return S.nextUnseen(data.unseen, now);
+  }
+
+  function renderUnseen(now) {
+    const box = $('ps-unseen');
+    const item = unseenNow(now);
+    box.hidden = !item;
+    if (!item) {
+      box.innerHTML = '';
+      return;
+    }
+    const words = S.describeUnseen(item, hass(), now);
+    box.innerHTML = `${S.EYE_OFF_SVG}<div class="ps-unseen-text"><b id="ps-unseen-lead">${S.escapeHtml(words.lead)}</b> `
+      + `<span>${S.escapeHtml(words.reason)}</span></div>`
+      + S.pill('neutral', 'Not visible', 'NOT VISIBLE: the station is above your horizon, but there is nothing to see, so this is not a pass and no alert is sent.');
+  }
+
+  function signatureOf(state, now) {
+    const item = unseenNow(now);
+    const unseen = item ? `${item.start}|${Date.parse(item.start) <= now}` : '';
+    return `${state.kind}|${state.pass ? state.pass.start : ''}|${unseen}`;
+  }
+
   function renderHero(state, now) {
     const hero = $('ps-hero');
     hero.className = state.kind === 'live' ? 'live' : (state.kind === 'next' ? '' : 'plain');
@@ -1713,34 +1780,44 @@
     }).join('');
   }
 
-  function pushOverlay(state) {
+  function pushOverlay(state, now) {
     const who = data && data.observer.available ? data.observer : null;
     const p = state.pass || null;
+    const unseen = unseenNow(now);
     window.issTrackSetOverlay({
       observer: who ? { latitude: who.latitude, longitude: who.longitude } : null,
       pass: p ? { start: Date.parse(p.start), end: Date.parse(p.end) } : null,
+      unseen: unseen ? { start: Date.parse(unseen.start), end: Date.parse(unseen.end) } : null,
     });
   }
 
   function render() {
     const now = Date.now();
     const state = stateOf(now);
-    signature = `${state.kind}|${state.pass ? state.pass.start : ''}`;
+    signature = signatureOf(state, now);
     $('passes').hidden = false;
     renderHead(state, now);
     renderNote();
+    renderUnseen(now);
     renderHero(state, now);
     renderList(now);
-    pushOverlay(state);
+    pushOverlay(state, now);
   }
 
   function tick() {
     if (!data) return;
     const now = Date.now();
     const state = stateOf(now);
-    if (`${state.kind}|${state.pass ? state.pass.start : ''}` !== signature) {
+    if (signatureOf(state, now) !== signature) {
       render();
-    } else if (state.kind === 'next' && $('ps-big')) {
+      return;
+    }
+    // While an unseen overflight is overhead, its height and direction move.
+    const item = unseenNow(now);
+    if (item && Date.parse(item.start) <= now && $('ps-unseen-lead')) {
+      $('ps-unseen-lead').textContent = S.describeUnseen(item, hass(), now).lead;
+    }
+    if (state.kind === 'next' && $('ps-big')) {
       $('ps-big').textContent = S.formatCountdown(Date.parse(state.pass.start) - now);
     } else if (state.kind === 'live') {
       updateLive(state.pass, now);

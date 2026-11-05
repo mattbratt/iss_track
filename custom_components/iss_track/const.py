@@ -53,6 +53,11 @@ MOVE_THRESHOLD_KM = 25.0
 # The weather entity describes home; beyond this distance its sky is unknown.
 WEATHER_RANGE_KM = 50.0
 
+# Unseen overflights are only looked for close to now: the panel mentions
+# one when it is under way or about to begin.
+UNSEEN_LOOKBACK = timedelta(minutes=10)
+UNSEEN_LOOKAHEAD = timedelta(minutes=90)
+
 TRACK_SPAN = timedelta(minutes=100)
 TRACK_STEP_SECONDS = 10
 
