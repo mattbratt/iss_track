@@ -62,9 +62,9 @@ class IssTrackCard extends HTMLElement {
     this._hass = null;
     this._data = null;
     this._error = null;
-    this._loading = false;
+    this._seq = 0;
     this._loadedAt = 0;
-    this._watched = null;
+    this._unsub = null;
     this._signature = '';
     this._timer = null;
   }
@@ -126,13 +126,17 @@ class IssTrackCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    // The next-pass sensor changes whenever passes or settings change.
-    const watched = hass.states['sensor.iss_track_next_pass'] || null;
-    const stale = Date.now() - this._loadedAt > REFRESH_MS;
-    if (this._config && (watched !== this._watched || stale)) {
-      this._watched = watched;
-      this._load();
-    }
+    this._subscribe();
+    if (this._config && Date.now() - this._loadedAt > REFRESH_MS) this._load();
+  }
+
+  // The integration says when passes, sky or settings change, for any
+  // location, so the card never shows a stale list.
+  _subscribe() {
+    if (this._unsub || !this._hass || !this.isConnected) return;
+    this._unsub = this._hass.connection
+      .subscribeMessage(() => this._load(), { type: 'iss_track/subscribe' })
+      .catch(() => null);
   }
 
   getCardSize() {
@@ -141,12 +145,17 @@ class IssTrackCard extends HTMLElement {
 
   connectedCallback() {
     this._timer = window.setInterval(() => this._tick(), 1000);
+    this._subscribe();
     this._render();
   }
 
   disconnectedCallback() {
     window.clearInterval(this._timer);
     this._timer = null;
+    if (this._unsub) {
+      this._unsub.then((unsubscribe) => unsubscribe && unsubscribe());
+      this._unsub = null;
+    }
   }
 
   _choice() {
@@ -155,18 +164,26 @@ class IssTrackCard extends HTMLElement {
   }
 
   async _load() {
-    if (this._loading || !this._hass || !this._config) return;
-    this._loading = true;
+    if (!this._hass || !this._config) return;
+    // Only the newest request is applied.
+    const seq = ++this._seq;
     this._loadedAt = Date.now();
+    let data = null;
+    let problem = null;
     try {
-      this._data = await S.fetchPasses(this._hass, this._choice());
-      this._error = null;
+      data = await S.fetchPasses(this._hass, this._choice());
     } catch (err) {
-      this._error = (err && err.message) || 'ISS Track is not ready';
+      problem = (err && err.message) || 'ISS Track is not ready';
+    }
+    if (seq !== this._seq) return;
+    if (problem) {
+      this._error = problem;
       // Try again soon rather than waiting out the full refresh period.
       this._loadedAt = Date.now() - REFRESH_MS + 30000;
+    } else {
+      this._data = data;
+      this._error = null;
     }
-    this._loading = false;
     this._signature = '';
     this._render();
   }

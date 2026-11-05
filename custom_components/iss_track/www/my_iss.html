@@ -1550,6 +1550,7 @@
   };
 
   const PASSES_REFRESH_MS = 5 * 60 * 1000;
+  const PASSES_RETRY_MS = 15 * 1000;
   const REASON = {
     quality: (p) => `${S.QUALITY[p.quality].label} is off`,
     brightness: () => 'Too faint',
@@ -1560,7 +1561,8 @@
   let open = remember.get('iss_track_passes_open', '1') === '1';
   let data = null;
   let failure = null;
-  let loading = false;
+  let loadSeq = 0;
+  let retryTimer = null;
   let signature = '';
   let settings = null;
   let pending = {};
@@ -1576,16 +1578,27 @@
     return { kind: S.isLive(next, now) ? 'live' : 'next', pass: next };
   }
 
+  // Only the newest request is applied, so a slow answer for one location
+  // can never land under the other location's button.
   async function load() {
-    if (!hass() || loading) return;
-    loading = true;
+    if (!hass()) return;
+    const seq = ++loadSeq;
+    window.clearTimeout(retryTimer);
+    let result = null;
+    let problem = null;
     try {
-      data = await S.fetchPasses(hass(), choice);
-      failure = null;
+      result = await S.fetchPasses(hass(), choice);
     } catch (err) {
-      failure = (err && err.message) || 'ISS Track is not ready';
+      problem = (err && err.message) || 'ISS Track is not ready';
     }
-    loading = false;
+    if (seq !== loadSeq) return;
+    if (problem) {
+      failure = problem;
+      retryTimer = window.setTimeout(load, PASSES_RETRY_MS);
+    } else {
+      data = result;
+      failure = null;
+    }
     render();
   }
 
@@ -1895,6 +1908,8 @@
     if (query.has('settings')) openSettings();
     window.setInterval(tick, 1000);
     window.setInterval(load, PASSES_REFRESH_MS);
+    // The integration says when passes, sky or settings change.
+    hass().connection.subscribeMessage(() => load(), { type: 'iss_track/subscribe' }).catch(() => {});
   }
   if (hass()) start();
   else window.addEventListener('iss-track-hass', start, { once: true });

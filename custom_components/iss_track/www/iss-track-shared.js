@@ -288,9 +288,11 @@ function browserPosition() {
       reject(new Error('insecure'));
       return;
     }
+    // Some browsers never call back when the prompt is dismissed.
+    const giveUp = window.setTimeout(() => reject(new Error('denied')), 15000);
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve(position.coords),
-      () => reject(new Error('denied')),
+      (position) => { window.clearTimeout(giveUp); resolve(position.coords); },
+      () => { window.clearTimeout(giveUp); reject(new Error('denied')); },
       { timeout: 10000, maximumAge: 600000 },
     );
   });
