@@ -91,6 +91,7 @@ _ADHOC_LIMIT = 8
 _ADHOC_TTL = timedelta(hours=1)
 _FORECAST_REACH = timedelta(minutes=90)
 _SKY_RETRY_SECONDS = 120
+_SKY_RETRY_LIMIT = 5
 _DATA_LISTENERS = "change_listeners"
 
 type IssTrackConfigEntry = ConfigEntry[IssTrackCoordinator]
@@ -214,6 +215,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
         self._current_sky = SKY_UNKNOWN
         self._forecast_entity: str | None = None
         self._sky_retry: CALLBACK_TYPE | None = None
+        self._sky_attempts = 0
         self._closed = False
         self._adhoc: dict[tuple[float, float, str], tuple[datetime, list[Pass]]] = {}
 
@@ -566,6 +568,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             self._forecast = []
             self._current_sky = SKY_UNKNOWN
             self._forecast_entity = entity_id
+            self._sky_attempts = 0
         if self._sky_retry is not None:
             self._sky_retry()
             self._sky_retry = None
@@ -573,10 +576,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             return
         state = self.hass.states.get(entity_id)
         if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
-            if not self._closed:
-                self._sky_retry = async_call_later(
-                    self.hass, _SKY_RETRY_SECONDS, self._handle_sky_timer
-                )
+            self._retry_forecast_soon()
             return
         self._current_sky = classify_sky(state.attributes.get("cloud_coverage"), state.state)
         try:
@@ -591,7 +591,7 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             # No hourly forecast from this entity: its current condition still
             # covers a pass that is about to start.
             _LOGGER.debug("No hourly forecast from %s: %s", entity_id, err)
-            self._forecast = []
+            self._retry_forecast_soon()
             return
         rows = ((response or {}).get(entity_id) or {}).get("forecast") or []
         forecast: list[tuple[datetime, str]] = []
@@ -602,8 +602,28 @@ class IssTrackCoordinator(DataUpdateCoordinator[LiveData]):
             forecast.append(
                 (dt_util.as_utc(when), classify_sky(row.get("cloud_coverage"), row.get("condition")))
             )
+        if not forecast:
+            # Ready, but nothing to offer yet: common just after a restart.
+            self._retry_forecast_soon()
+            return
         forecast.sort(key=lambda item: item[0])
         self._forecast = forecast
+        self._sky_attempts = 0
+
+    @callback
+    def _retry_forecast_soon(self) -> None:
+        """Ask again shortly, a few times, keeping the last good forecast.
+
+        The limit stops an entity that never offers an hourly forecast from
+        being asked every two minutes for ever; the half-hour refresh still
+        asks it once each time.
+        """
+        if self._closed or self._sky_attempts >= _SKY_RETRY_LIMIT:
+            return
+        self._sky_attempts += 1
+        self._sky_retry = async_call_later(
+            self.hass, _SKY_RETRY_SECONDS, self._handle_sky_timer
+        )
 
     def _sky_for_passes(self, observer: Observer | None, passes: list[Pass]) -> dict[datetime, str]:
         home = self.books[OBSERVER_HOME].observer if OBSERVER_HOME in self.books else None

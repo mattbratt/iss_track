@@ -2,6 +2,8 @@
 
 A Home Assistant integration that tracks the International Space Station (ISS) in real time and tells you when you can see it from where you are.
 
+New in version 2: visible pass predictions, entities, a calendar, a dashboard card and a pass-alert blueprint. See the [changelog](CHANGELOG.md).
+
 <img width="1000" height="573" alt="image" src="https://github.com/user-attachments/assets/f7c90b72-0945-48d1-91d4-f0ad0052eda1" />
 
 

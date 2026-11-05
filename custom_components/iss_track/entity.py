@@ -43,7 +43,6 @@ class IssTrackEntity(CoordinatorEntity[IssTrackCoordinator]):
                 manufacturer=PANEL_TITLE,
                 model="Passes for a person",
                 entry_type=DeviceEntryType.SERVICE,
-                via_device=(DOMAIN, entry_id),
             )
 
     @property
