@@ -4,7 +4,7 @@ A Home Assistant integration that tracks the International Space Station (ISS) i
 
 New in version 2: visible pass predictions, entities, a calendar, a dashboard card and a pass-alert blueprint. See the [changelog](CHANGELOG.md).
 
-<img width="1000" height="573" alt="image" src="https://github.com/user-attachments/assets/f7c90b72-0945-48d1-91d4-f0ad0052eda1" />
+<img width="998" alt="The ISS Track panel: the live map, the station's position and the visible passes list" src="https://raw.githubusercontent.com/mattbratt/iss_track/main/docs/images/panel.png" />
 
 
 ## Features
@@ -40,10 +40,15 @@ All frontend assets (map images, fonts, the panel and the card) are served direc
 - Under the map, **Visible passes** lists every pass you can see in the next 10 days. The blue ring on the map is where the station has to be for you to see it, and the next matching pass is drawn in green.
 - Switch between **Home** and **This device** to choose whose sky the passes are for.
 - The gear opens **Pass settings**.
+- Click **Visible passes** to fold the list away. The next matching pass stays in view on the bar.
+
+<img width="999" alt="The ISS Track panel with the visible passes list folded away" src="https://raw.githubusercontent.com/mattbratt/iss_track/main/docs/images/panel-collapsed.png" />
 
 ## Pass settings
 
 One set of settings decides which passes count. The panel, the dashboard card, the calendar and the entities all use it. Change it from the gear in the panel (administrators only) or from **Settings > Devices & Services > ISS Track > Configure**.
+
+<img width="672" alt="The pass settings sheet: pass quality, minimum brightness, sky forecast and time of day" src="https://raw.githubusercontent.com/mattbratt/iss_track/main/docs/images/pass-settings.png" />
 
 | Setting | Default | What it does |
 |---|---|---|
