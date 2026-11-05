@@ -101,6 +101,29 @@ def test_shadow_entry_is_reported(found):
     assert all(p.period == engine.PERIOD_EVENING for p in found)
 
 
+def test_southern_morning_passes_match_published_predictions(orbit):
+    """A second place and the other half of the day: Sydney, before dawn.
+
+    Published: 13 Nov mag -1.5, 18:14:20 to 18:19:41, highest 21 at 18:17:00;
+    14 Nov mag -0.9, 17:28:15 to 17:30:41, highest 12 at 17:29:28. The first
+    is cut short here because the sky passes our darkness limit at 18:17:03.
+    """
+    passes = engine.find_passes(
+        orbit, engine.Observer(-33.87, 151.21, 0.0), WINDOW_START, WINDOW_END
+    )
+    assert [p.period for p in passes] == [engine.PERIOD_MORNING, engine.PERIOD_MORNING]
+    first, second = passes
+    assert _seconds(first.start, _at(13, "18:14:20")) <= 2
+    assert _seconds(first.peak, _at(13, "18:17:00")) <= 2
+    assert first.peak_elevation == pytest.approx(21, abs=0.6)
+    assert first.magnitude == pytest.approx(-1.5, abs=0.15)
+    assert first.end < _at(13, "18:19:41") and not first.ends_in_shadow
+    assert _seconds(second.start, _at(14, "17:28:15")) <= 2
+    assert _seconds(second.end, _at(14, "17:30:41")) <= 2
+    assert second.peak_elevation == pytest.approx(12, abs=0.6)
+    assert second.magnitude == pytest.approx(-0.9, abs=0.15)
+
+
 def test_long_strides_never_skip_a_pass(orbit, found, monkeypatch):
     monkeypatch.setattr(
         passes_module, "_coarse_step", lambda elevation: timedelta(seconds=20)
