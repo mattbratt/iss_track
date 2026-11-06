@@ -1,8 +1,12 @@
 # ISS Track
 
-A Home Assistant integration that tracks the International Space Station (ISS) in real time and tells you when you can see it from where you are.
+A Home Assistant integration that tracks the International Space Station (ISS) in real time and tells you when you can step outside and see it.
 
-New in version 2: visible pass predictions, entities, a calendar, a dashboard card and a pass-alert blueprint. See the [changelog](CHANGELOG.md).
+It predicts every pass you can actually see from where you are: the station in sunlight, your sky dark, and high enough to spot. Each pass is rated from Poor to Excellent with an estimated brightness, and you choose which ones count. When the station crosses your sky unseen, it says why.
+
+Everything is exposed as entities, a calendar and a [dashboard card](#dashboard-card), so automations can act on a pass: a heads-up ten minutes before, a light that comes on while the station is overhead, and no alert at all when the forecast is cloudy. It works for your home, for the device you are holding, and for people who travel.
+
+See the [changelog](CHANGELOG.md) for what is new in each version.
 
 <img width="998" alt="The ISS Track panel: the live map, the station's position and the visible passes list" src="https://raw.githubusercontent.com/mattbratt/iss_track/main/docs/images/panel.png" />
 
@@ -104,7 +108,15 @@ The pass sensor switches at the exact second a pass starts and ends. While a mat
 
 ## Dashboard card
 
-The **ISS Track pass** card is in the card picker once the integration is set up. It shows the next matching pass with a countdown, and switches by itself to "Look NW, 34° above the horizon" while a pass is overhead.
+The **ISS Track pass** card is in the card picker once the integration is set up. It shows the next matching pass with a countdown, its quality, brightness and sky forecast, and the arc it traces across your sky. While a pass is overhead it switches by itself to "Look NW, 34° above the horizon".
+
+<img width="524" alt="The ISS Track pass card: a countdown to the next pass, its quality, brightness and sky, and the pass after it" src="https://raw.githubusercontent.com/mattbratt/iss_track/main/docs/images/card.png" />
+
+Set it up in the card editor, where the preview updates as you choose:
+
+<img width="800" alt="The card editor: location, person, compact row and upcoming passes, with a live preview of the card" src="https://raw.githubusercontent.com/mattbratt/iss_track/main/docs/images/card-editor.png" />
+
+Or in YAML:
 
 ```yaml
 type: custom:iss-track-card
