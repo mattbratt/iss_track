@@ -2,6 +2,11 @@
 
 All notable changes to ISS Track are listed here, newest first.
 
+## 2.0.2 - 2026-11-05
+
+### Changed
+- Updated readme with information about iss-track cards.
+
 ## 2.0.1 - 2026-11-04
 
 ### Added
